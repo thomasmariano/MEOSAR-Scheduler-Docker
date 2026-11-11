@@ -1,0 +1,19 @@
+# Python/runtime files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+
+# Host-specific configuration and data
+.env
+.env.*
+!.env.example
+ubuntu.env
+.web-data/
+tle-imports/
+backups/
+.deployment/
+output/
+Video/
+*.log

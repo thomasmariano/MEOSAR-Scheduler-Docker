@@ -1,0 +1,55 @@
+{
+    "Antenna 2": {
+        "operational": true,
+        "bands": [
+            "S",
+            "L"
+        ]
+    },
+    "Antenna 3": {
+        "operational": true,
+        "bands": [
+            "S",
+            "L"
+        ]
+    },
+    "Antenna 4": {
+        "operational": true,
+        "bands": [
+            "S",
+            "L"
+        ]
+    },
+    "Antenna 5": {
+        "operational": true,
+        "bands": [
+            "S",
+            "L"
+        ]
+    },
+    "Antenna 6": {
+        "operational": true,
+        "bands": [
+            "S",
+            "L"
+        ]
+    },
+    "Channel 1 - PA": {
+        "operational": true,
+        "bands": [
+            "S"
+        ]
+    },
+    "Channel 2 - PA": {
+        "operational": true,
+        "bands": [
+            "S"
+        ]
+    },
+    "Channel 3 - PA": {
+        "operational": true,
+        "bands": [
+            "S"
+        ]
+    }
+}

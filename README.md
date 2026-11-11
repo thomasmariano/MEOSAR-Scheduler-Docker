@@ -9,15 +9,15 @@ version of my [MEOSAR Scheduler desktop application](https://github.com/thomasma
 I built the desktop scheduler first, then added a simulator and video export.
 I am now moving those tools into a shared browser application so users on an
 internal network can access them without installing the desktop application.
-The desktop and browser interfaces use shared Python calculation modules.
+The browser calculations were adapted from the desktop application and are included in this repository.
 
 **Current development version:** 2.0.3  
 **Deployment target:** an internal Ubuntu server running Docker Compose
 
-> This repository currently contains the project README. The runnable web
-> application and deployment files have not yet been uploaded here. The commands
-> below apply to the original source repository once its web migration files are
-> committed and published.
+This repository contains the standalone web application, calculation modules,
+simulator assets and Docker deployment files. It builds without cloning the
+desktop repository. The two versions are maintained independently; calculation
+fixes that apply to both need to be tested and applied in both repositories.
 
 ## Features
 
@@ -73,10 +73,12 @@ supported by the Dockerfile; target-server testing is still needed.
 
 ## Running the application
 
-The application source is currently maintained in
-[MEOSAR-Scheduler](https://github.com/thomasmariano/MEOSAR-Scheduler). Ensure the
-selected source commit includes the web migration and server helper before
-attempting deployment.
+Clone this repository on the Ubuntu server:
+
+```bash
+git clone https://github.com/thomasmariano/MEOSAR-Scheduler-Docker.git
+cd MEOSAR-Scheduler-Docker
+```
 
 Install Docker Engine and the Compose plugin using the
 [official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/).
@@ -134,7 +136,7 @@ not reclaim their stored files.
 ## Updates and backups
 
 My update workflow is to test changes locally, commit and push them, then deploy
-a tested commit on the server. For a server following the source repository's
+a tested commit from this repository on the server. For a server following the source repository's
 `main` branch:
 
 ```bash
@@ -174,3 +176,20 @@ its calculations is separate from approving the network deployment.
 I maintain the project and its scheduling/simulation features. The next step is
 to test the browser version on the intended Ubuntu server, verify persistence
 and backups, and agree the network configuration before wider use.
+
+## Repository workflow
+
+This is the **web/Docker repository**. The [desktop repository](https://github.com/thomasmariano/MEOSAR-Scheduler)
+remains separate. See [repository workflow](docs/REPOSITORY_WORKFLOW.md) and the
+[Ubuntu deployment guide](docs/UBUNTU_LAN_DEPLOYMENT.md) for development and updates.
+
+For local testing alongside the existing development stack:
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+Open http://localhost:8081. The new Compose project, `meosar-web`, has its own
+data volume; existing data from the original development stack is not moved
+or deleted. Ubuntu uses `ubuntu.env` and normally port 8080.

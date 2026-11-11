@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MEOSAR Mission Simulation</title>
+<style>__MEOSAR_DASHBOARD_CSS__</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">
+    <div class="logo">◉</div>
+    <div>
+      <h1>MEOSAR / MISSION SIMULATION</h1>
+      <div class="subhead">SATELLITE ORBITAL TRACKING · GEOMETRIC COVERAGE</div>
+    </div>
+  </div>
+  <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">INITIALIZING</span></div>
+</header>
+
+<main>
+<section class="left">
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Scheduled Satellites</div><div id="mSatellites" class="metric-value cyan">—</div></div>
+    <div class="metric"><div class="metric-label">Positions Available</div><div id="mPositions" class="metric-value">—</div></div>
+    <div class="metric" title="Displayed satellites above 3° at both ground station and mission site"><div class="metric-label">Mutually Visible</div><div id="mMutual" class="metric-value green">—</div><div id="mMutualNote" class="metric-range">Station + mission site</div></div>
+    <div class="metric"><div class="metric-label">Simulation Duration</div><div id="mDuration" class="metric-value orange">—</div><div id="mDurationRange" class="metric-range">UTC</div></div>
+  </div>
+
+  <div class="panel globe-panel">
+    <div class="panel-head">
+      <div class="panel-title">EARTH / SATELLITE TRACKING</div>
+      <div id="globeInfo" class="panel-note">Waiting for schedule</div>
+    </div>
+    <canvas id="globeCanvas"></canvas>
+    
+    <details class="display-menu">
+      <summary>DISPLAY / SATELLITE OPTIONS</summary>
+      <div class="layer-controls">
+      <label>
+        Display
+        <select id="satelliteFilter" class="speed" onchange="setLayerVisibility()">
+          <option value="all">All loaded satellites</option>
+          <option value="scheduled" selected>All schedule satellites</option>
+          <option value="active">Actively tracked now</option>
+        </select>
+      </label>
+      <label><input type="checkbox" id="showOrbits" onchange="setLayerVisibility()"> Orbit paths (altitude compressed)</label>
+      <label><input type="checkbox" id="showGroundTracks" checked onchange="setLayerVisibility()"> Ground tracks (past solid / future dashed)</label>
+      <label><input type="checkbox" id="showCoverage" checked onchange="setLayerVisibility()"> Coverage footprints</label>
+      <label><input type="checkbox" id="activeCoverageOnly" checked onchange="setLayerVisibility()"> Active footprints only</label>
+      <label>Labels <select id="identifierMode" class="speed" onchange="setIdentifierMode(this.value)"><option value="norad">NORAD ID</option><option value="meosar" selected>MEOSAR ID</option></select></label>
+      </div>
+    </details>
+
+    <div class="globe-badge" id="globeBadge" title="Earth-fixed coordinates · UTC · Orbital altitude is compressed for display">UTC · ALTITUDE COMPRESSED</div>
+    <details class="globe-legend" open><summary>COLOR KEY</summary>
+      <div class="legend-item"><span class="legend-dot" style="background:#52f0b0"></span>Actively tracked + visible</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#5599ff"></span>Visible, not tracked now</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ffbd69"></span>Previously tracked</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ff647c"></span>Not visible / track warning</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ff9b45"></span>Coverage overlap: 1 tracked</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#ffd166"></span>Coverage overlap: 2 tracked</div>
+      <div class="legend-item"><span class="legend-dot" style="background:#52f0b0"></span>Coverage overlap: 3+ tracked</div>
+      <div class="legend-item">Location ring: yellow &lt;3 · green ≥3</div>
+      <div class="legend-item">Orange stays orange after tracking ends.</div>
+    </details>
+  </div>
+
+  <div class="panel controls">
+    <div class="control-row">
+      <button class="action primary" id="playButton" onclick="togglePlay()">▶ PLAY</button>
+      <button class="action" onclick="step(-60)">−1 MIN</button>
+      <button class="action" onclick="step(60)">+1 MIN</button>
+      <select class="speed" id="speedSelect" onchange="setSpeed(this.value)">
+        <option value="1">1×</option><option value="10">10×</option>
+        <option value="100" selected>100×</option><option value="300">300×</option><option value="500">500×</option>
+      </select>
+      <div id="timeReadout">
+        <div id="timeText">—</div><div id="dateText">UTC</div>
+      </div>
+    </div>
+    <input id="timeline" type="range" min="0" max="1000" value="0" oninput="seek(this.value)">
+    <div class="control-row">
+      <span class="panel-note" id="rangeStart">SCHEDULE START</span>
+      <span class="panel-note" style="margin-left:auto" id="rangeEnd">SCHEDULE END</span>
+    </div>
+    <details class="event-navigation">
+      <summary>EVENT NAVIGATION</summary>
+      <div class="event-row"><button class="action" onclick="jumpAssignment(-1)">← PREV ASSIGNMENT</button><button class="action" onclick="jumpAssignment(1)">NEXT ASSIGNMENT →</button></div>
+      <div class="event-row"><label>Location <select class="speed" id="eventLocation"><option value="all">All monitored locations</option></select></label><select class="speed" id="eventKind" aria-label="Coverage event type"><option value="any">Loss or recovery</option><option value="loss">Loss below 3</option><option value="recovery">Recovery to 3+</option></select></div>
+      <div class="event-row"><button class="action" id="previousCoverage" onclick="requestCoverageNavigation(-1)">← PREV COVERAGE EVENT</button><button class="action" id="nextCoverage" onclick="requestCoverageNavigation(1)">NEXT COVERAGE EVENT →</button><button class="action" id="cancelCoverageSearch" hidden onclick="cancelCoverageNavigation('Search cancelled.')">CANCEL</button></div>
+      <div class="panel-note">Coverage search: 10-second samples, refined to ≤1 second. Shorter excursions may be missed. Assignment boundaries are checked exactly.</div>
+      <div id="eventStatus" class="event-status" role="status">Choose an assignment or coverage event.</div>
+    </details>
+  </div>
+</section>
+
+<aside class="right">
+  <div class="panel side-panel" id="comparisonPanel">
+    <div class="panel-head"><div class="panel-title">SCHEDULER / SIMULATOR CHECK</div><span class="panel-note" id="comparisonSummary">Waiting</span></div>
+    <div class="coverage-note" id="comparisonTime">Active assignments checked against propagated visibility at both endpoints.</div>
+    <div class="scroll" id="comparisonRows"></div>
+    <div class="coverage-note">Checks the imported assignments using the simulator's TLEs and 3° mask. Original scheduler TLEs/elevations are not available for an independent replay.</div>
+  </div>
+  <div class="panel side-panel" id="coveragePanel">
+    <div class="panel-head"><div class="panel-title">LOCATION COVERAGE</div><div id="coverageTime" class="panel-note">Waiting</div></div>
+    <div class="scroll" id="locationCoverage"></div>
+    <div class="coverage-note">Counts use active assignments and local elevation ≥3°. Hidden satellites still count. Yellow &lt;3 · green ≥3. Use PIN LOCATIONS above to manage pins.</div>
+  </div>
+  <div class="panel side-panel" id="satelliteControlsPanel">
+    <div class="panel-head"><div class="panel-title">SATELLITE LAYERS</div><span class="panel-note">SELECT / TOGGLE</span></div>
+    <div class="satellite-sort"><label>Sort <select id="satelliteSort" class="speed" onchange="setSatelliteSort(this.value)"><option value="label">Displayed ID</option><option value="norad">NORAD ID</option><option value="meosar">MEOSAR ID</option><option value="state">State</option><option value="band">Band</option></select></label><button class="action" id="sortDirection" onclick="toggleSortDirection()" title="Reverse sort order">↑ ASC</button></div>
+    <div class="scroll"><table><thead><tr><th>SATELLITE</th><th title="Show satellite and its layers">ON</th><th title="Orbit path">ORBIT</th><th title="Ground track">TRACK</th><th title="Coverage footprint">COV</th></tr></thead><tbody id="satelliteLayers"></tbody></table></div>
+  </div>
+  <div id="trackingWarning" hidden></div>
+  <div id="schedulePanel" class="panel side-panel">
+    <div class="panel-head"><div class="panel-title">ASSIGNMENT TIMELINE</div><div class="panel-note" id="assignmentCount">0 rows</div></div>
+    <div class="scroll">
+      <table><thead><tr><th>SATELLITE</th><th>START (UTC)</th><th>STATE</th></tr></thead>
+      <tbody id="scheduleRows"></tbody></table>
+    </div>
+  </div>
+  <div id="satPanel" class="panel side-panel">
+    <div class="panel-head"><div class="panel-title">SATELLITE INSPECTOR</div><div class="panel-note">SELECT A ROW</div></div>
+    <div class="detail" id="satDetail">
+      <div class="diag-text">Select a satellite assignment to inspect its current propagated position.</div>
+    </div>
+  </div>
+  <div id="diagnosticPanel" class="panel side-panel">
+    <div class="panel-head"><div class="panel-title">ENGINE DIAGNOSTICS</div><div class="panel-note" id="diagCount">0 messages</div></div>
+    <div id="diagnostics" class="scroll"></div>
+  </div>
+  <div id="activeContactsPanel" class="panel side-panel" style="display:none">
+    <div class="panel-head"><div class="panel-title">ACTIVE ANTENNA CONTACTS</div></div><div id="activeContactsRows" class="scroll"></div>
+  </div>
+  <div id="upcomingContactsPanel" class="panel side-panel" style="display:none">
+    <div class="panel-head"><div class="panel-title">UPCOMING ASSIGNMENTS</div></div><div id="upcomingContactsRows" class="scroll"></div>
+  </div>
+  <div id="dataHealthPanel" class="panel side-panel" style="display:none">
+    <div class="panel-head"><div class="panel-title">DATA HEALTH</div></div><div id="dataHealthRows" class="scroll"></div>
+  </div>
+  <div id="coverageSummaryPanel" class="panel side-panel" style="display:none">
+    <div class="panel-head"><div class="panel-title">COVERAGE SUMMARY</div></div><div id="coverageSummaryRows" class="scroll"></div>
+  </div>
+</aside>
+</main>
+<footer>
+  <span id="footerLeft">SGP4 PROPAGATION · APPROXIMATE TEME → ECEF ROTATION</span>
+  <span id="footerRight">VISIBILITY IS GEOMETRIC; RF PERFORMANCE IS NOT MODELED</span>
+</footer>
+</div>
+
+<script>__MEOSAR_DASHBOARD_JS__</script>
+</body>
+</html>

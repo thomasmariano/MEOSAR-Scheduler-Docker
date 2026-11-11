@@ -1,0 +1,287 @@
+{
+    "62339": {
+        "meosar_id": "11301",
+        "band": "S",
+        "enabled": true
+    },
+    "28474": {
+        "meosar_id": "11302",
+        "band": "S",
+        "enabled": true
+    },
+    "40294": {
+        "meosar_id": "11303",
+        "band": "S",
+        "enabled": true
+    },
+    "43873": {
+        "meosar_id": "11304",
+        "band": "S",
+        "enabled": true
+    },
+    "39741": {
+        "meosar_id": "11306",
+        "band": "S",
+        "enabled": true
+    },
+    "40730": {
+        "meosar_id": "11308",
+        "band": "S",
+        "enabled": true
+    },
+    "40105": {
+        "meosar_id": "11309",
+        "band": "S",
+        "enabled": true
+    },
+    "41019": {
+        "meosar_id": "11310",
+        "band": "S",
+        "enabled": true
+    },
+    "48859": {
+        "meosar_id": "11311",
+        "band": "S",
+        "enabled": true
+    },
+    "29601": {
+        "meosar_id": "11312",
+        "band": "S",
+        "enabled": true
+    },
+    "46826": {
+        "meosar_id": "11314",
+        "band": "S",
+        "enabled": true
+    },
+    "32260": {
+        "meosar_id": "11315",
+        "band": "S",
+        "enabled": true
+    },
+    "27663": {
+        "meosar_id": "11316",
+        "band": "S",
+        "enabled": true
+    },
+    "28874": {
+        "meosar_id": "11317",
+        "band": "S",
+        "enabled": true
+    },
+    "44506": {
+        "meosar_id": "11318",
+        "band": "S",
+        "enabled": true
+    },
+    "28190": {
+        "meosar_id": "11319",
+        "band": "S",
+        "enabled": true
+    },
+    "64202": {
+        "meosar_id": "11321",
+        "band": "S",
+        "enabled": true
+    },
+    "45854": {
+        "meosar_id": "11323",
+        "band": "S",
+        "enabled": true
+    },
+    "38833": {
+        "meosar_id": "11324",
+        "band": "S",
+        "enabled": true
+    },
+    "40534": {
+        "meosar_id": "11326",
+        "band": "S",
+        "enabled": true
+    },
+    "39166": {
+        "meosar_id": "11327",
+        "band": "S",
+        "enabled": true
+    },
+    "55268": {
+        "meosar_id": "11328",
+        "band": "S",
+        "enabled": true
+    },
+    "32384": {
+        "meosar_id": "11329",
+        "band": "S",
+        "enabled": true
+    },
+    "39533": {
+        "meosar_id": "11330",
+        "band": "S",
+        "enabled": true
+    },
+    "41328": {
+        "meosar_id": "11332",
+        "band": "S",
+        "enabled": true
+    },
+    "41550": {
+        "meosar_id": "11401",
+        "band": "L",
+        "enabled": true
+    },
+    "41549": {
+        "meosar_id": "11402",
+        "band": "L",
+        "enabled": true
+    },
+    "41860": {
+        "meosar_id": "11403",
+        "band": "L",
+        "enabled": true
+    },
+    "41861": {
+        "meosar_id": "11404",
+        "band": "L",
+        "enabled": true
+    },
+    "41862": {
+        "meosar_id": "11405",
+        "band": "L",
+        "enabled": true
+    },
+    "59600": {
+        "meosar_id": "11406",
+        "band": "L",
+        "enabled": true
+    },
+    "41859": {
+        "meosar_id": "11407",
+        "band": "L",
+        "enabled": true
+    },
+    "41175": {
+        "meosar_id": "11408",
+        "band": "L",
+        "enabled": true
+    },
+    "41174": {
+        "meosar_id": "11409",
+        "band": "L",
+        "enabled": true
+    },
+    "49810": {
+        "meosar_id": "11410",
+        "band": "L",
+        "enabled": true
+    },
+    "37846": {
+        "meosar_id": "11411",
+        "band": "L",
+        "enabled": true
+    },
+    "37847": {
+        "meosar_id": "11412",
+        "band": "L",
+        "enabled": true
+    },
+    "43567": {
+        "meosar_id": "11413",
+        "band": "L",
+        "enabled": true
+    },
+    "41029": {
+        "meosar_id": "11414",
+        "band": "L",
+        "enabled": true
+    },
+    "43564": {
+        "meosar_id": "11415",
+        "band": "L",
+        "enabled": true
+    },
+    "61182": {
+        "meosar_id": "11416",
+        "band": "L",
+        "enabled": true
+    },
+    "40128": {
+        "meosar_id": "11418",
+        "band": "L",
+        "enabled": true
+    },
+    "38857": {
+        "meosar_id": "11419",
+        "band": "L",
+        "enabled": true
+    },
+    "43055": {
+        "meosar_id": "11421",
+        "band": "L",
+        "enabled": true
+    },
+    "40545": {
+        "meosar_id": "11422",
+        "band": "L",
+        "enabled": true
+    },
+    "61183": {
+        "meosar_id": "11423",
+        "band": "L",
+        "enabled": true
+    },
+    "43056": {
+        "meosar_id": "11425",
+        "band": "L",
+        "enabled": true
+    },
+    "40544": {
+        "meosar_id": "11426",
+        "band": "L",
+        "enabled": true
+    },
+    "43057": {
+        "meosar_id": "11427",
+        "band": "L",
+        "enabled": true
+    },
+    "67160": {
+        "meosar_id": "11428",
+        "band": "L",
+        "enabled": true
+    },
+    "59598": {
+        "meosar_id": "11429",
+        "band": "L",
+        "enabled": true
+    },
+    "40890": {
+        "meosar_id": "11430",
+        "band": "L",
+        "enabled": true
+    },
+    "43058": {
+        "meosar_id": "11431",
+        "band": "L",
+        "enabled": true
+    },
+    "67162": {
+        "meosar_id": "11432",
+        "band": "L",
+        "enabled": true
+    },
+    "43565": {
+        "meosar_id": "11433",
+        "band": "L",
+        "enabled": true
+    },
+    "49809": {
+        "meosar_id": "11434",
+        "band": "L",
+        "enabled": true
+    },
+    "43566": {
+        "meosar_id": "11436",
+        "band": "L",
+        "enabled": true
+    }
+}

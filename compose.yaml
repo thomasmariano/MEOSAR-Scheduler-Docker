@@ -1,0 +1,39 @@
+name: meosar-web
+services:
+  web:
+    image: ${MEOSAR_IMAGE:-meosar-scheduler-web:dev}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${MEOSAR_BIND_ADDRESS:-127.0.0.1}:${MEOSAR_PORT:-8080}:8080"
+    environment:
+      MEOSAR_DATA_DIR: /data
+      MEOSAR_CONFIG_DIR: /data/config
+      MEOSAR_TLE_DIR: /data/tles
+      MEOSAR_TLE_IMPORT_DIR: /imports/tles
+      MEOSAR_VIDEO_MAX_SECONDS: ${MEOSAR_VIDEO_MAX_SECONDS:-600}
+      MEOSAR_VIDEO_MAX_FRAMES: ${MEOSAR_VIDEO_MAX_FRAMES:-18000}
+      MEOSAR_VIDEO_SESSION_SECONDS: ${MEOSAR_VIDEO_SESSION_SECONDS:-7200}
+    volumes:
+      - meosar-data:/data
+      - type: bind
+        source: ${MEOSAR_TLE_IMPORT_DIR:-./tle-imports}
+        target: /imports/tles
+        read_only: true
+        bind:
+          create_host_path: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  meosar-data:

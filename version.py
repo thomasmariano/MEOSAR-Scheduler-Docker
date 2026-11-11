@@ -1,0 +1,2 @@
+APP_NAME = "MEOSAR Scheduler"
+APP_VERSION = "2.0.3"

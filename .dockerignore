@@ -1,0 +1,47 @@
+# Allow only the files needed by the initial web image.
+**
+!Dockerfile
+!requirements-web.txt
+!requirements-web.lock.txt
+!paths.py
+!version.py
+!config/
+!config/*.py
+!core/
+!core/*.py
+!satellites/
+!satellites/*.py
+!satellites/tle_components/
+!satellites/tle_components/*.py
+!satellites/tle_sources/
+!satellites/tle_sources/*.py
+!scheduler/
+!scheduler/*.py
+!graphs/
+!graphs/*.py
+!reports/
+!reports/*.py
+!web/
+!web/*.py
+!web/*.html
+
+# Explicitly approved first-run resource libraries, never TLEs or credentials.
+!config/locations.json
+!config/satellites.json
+!config/antennas.json
+!web/*.js
+!web/*.css
+
+# Shared simulator engine and existing browser assets; exclude Qt windows/video.
+!simulation/
+!simulation/__init__.py
+!simulation/orbit_engine.py
+!simulation/dashboard_assets.py
+!simulation/web/
+!simulation/web/*.js
+!simulation/web/*.css
+!simulation/web/*.html
+!assets/
+!assets/earth_texture.jpg
+
+!simulation/schedule_parser.py

@@ -1,0 +1,29 @@
+{
+    "Goddard": {
+        "type": "ground_station",
+        "latitude": 38.995,
+        "longitude": -76.853,
+        "elevation": 200
+    },
+    "Kazakhstan": {
+        "type": "mission_site",
+        "latitude": 47.21,
+        "longitude": 69.36,
+        "elevation": 90
+    },
+    "San Diego": {
+        "latitude": 32.3,
+        "longitude": -117.8,
+        "elevation": 0.0
+    },
+    "KSC": {
+        "latitude": 28.57,
+        "longitude": -80.65,
+        "elevation": 2.0
+    },
+    "Shannon Ireland": {
+        "latitude": 52.7125,
+        "longitude": -8.8731,
+        "elevation": 2.0
+    }
+}

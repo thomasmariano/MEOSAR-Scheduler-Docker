@@ -1,218 +1,176 @@
-# MEOSAR Scheduler — Network Deployment Handoff
+# MEOSAR Scheduler Docker
 
-**Prepared for:** network/server engineering review  
-**Project owner/developer:** Thomas Mariano  
-**Application target:** MEOSAR Scheduler web version 2.0.3  
-**Prepared:** November 11, 2026  
-**Status:** development build; controlled deployment testing requested
+**Developed and maintained by Thomas Mariano.**
 
-This repository explains the proposed deployment. It is a documentation handoff,
-not a second application codebase and not an assertion of security approval.
+A browser-based application for MEOSAR satellite visibility analysis, mission
+planning, antenna scheduling, and satellite simulation. This is the Docker/web
+version of my [MEOSAR Scheduler desktop application](https://github.com/thomasmariano/MEOSAR-Scheduler).
 
-Application source: [thomasmariano/MEOSAR-Scheduler](https://github.com/thomasmariano/MEOSAR-Scheduler).
-The local web migration and deployment helper must be committed and pushed there
-before the server can deploy them. Do not assume the public/default branch already
-contains the local 2.0.3 working copy. Use an explicitly identified tested commit.
+I built the desktop scheduler first, then added a simulator and video export.
+I am now moving those tools into a shared browser application so users on an
+internal network can access them without installing the desktop application.
+The desktop and browser interfaces use shared Python calculation modules.
 
-## What the application does
+**Current development version:** 2.0.3  
+**Deployment target:** an internal Ubuntu server running Docker Compose
 
-MEOSAR Scheduler supports planning satellite tracking for search-and-rescue
-support. It calculates mutual visibility between a ground station and mission
-site, assigns satellites to compatible antennas, and produces schedules and
-coverage graphics. Its simulator visualizes satellite motion, tracked locations
-and coverage, with browser-assisted video export.
+> This repository currently contains the project README. The runnable web
+> application and deployment files have not yet been uploaded here. The commands
+> below apply to the original source repository once its web migration files are
+> committed and published.
 
-The existing desktop application uses Python/PyQt6. The browser version uses the
-shared Python calculation modules behind FastAPI/Uvicorn, with HTML, CSS and
-JavaScript for the interface. The goal is a central internal-network deployment
-that users open in a browser instead of installing the desktop application.
+## Features
 
-Current browser functions include:
+- Mutual satellite visibility calculations between a ground station and mission site.
+- Mission tracking windows with UTC event times and before/after coverage.
+- Antenna-compatible satellite assignments and coverage preferences.
+- Interactive schedule review, validated editing, and schedule/image exports.
+- Satellite, antenna, location, and TLE libraries.
+- TLE retrieval from CelesTrak and Space-Track, browser uploads, and server folders.
+- Saved missions, previous jobs, and a shared launch/landing calendar.
+- Shared announcements and antenna down/repair updates for future calculations.
+- Interactive globe, satellite tracks, pinned locations, and coverage displays.
+- Video export with camera positioning and selectable information panels.
+- Light and dark themes.
 
-- Mission setup, resource libraries and TLE source management.
-- Schedule generation, job history, validated assignment editing and exports.
-- Saved missions, shared calendar events and shared operational announcements.
-- Antenna availability updates that affect future calculations.
-- Interactive tracking timelines and satellite simulation.
-- Video export using browser-rendered frames and server-side FFmpeg encoding.
-
-This is a planning/visualization tool. Operational suitability and calculation
-acceptance must be assessed separately from network deployment approval.
-
-## Proposed architecture
+## How it works
 
 ```text
-Approved LAN browsers
-        |
-        | HTTPS (proposed; requires network configuration)
-        v
-Internal DNS name + reverse proxy / TLS termination
-        |
-        | Restricted backend connection
-        v
-Ubuntu server: Docker Compose
-  web container: FastAPI + Uvicorn + shared calculation modules + FFmpeg
-        |
-        +-- Persistent Docker volume: application data
-        +-- Read-only host mount: optional TLE import folder
-        +-- Outbound HTTPS: CelesTrak / Space-Track when requested
+Users on the internal network
+          |
+          v
+Browser interface
+          |
+          v
+Ubuntu server / Docker Compose
+  FastAPI + shared Python scheduling calculations
+  Satellite propagation + FFmpeg video encoding
+          |
+          v
+Persistent application data volume
 ```
 
-The checked-in Compose application publishes port **8080**. The local Mac default
-binds to **127.0.0.1**; the Ubuntu env example allows a LAN IP or **0.0.0.0**.
-The current application configuration supplies HTTP, not TLS. The reverse proxy,
-certificate, DNS, network restrictions and trusted proxy settings remain deployment
-work for engineering. If the proxy is on another host, restrict backend access to
-that proxy's address. Test same-origin request checks after proxy configuration.
+The browser sends mission inputs to the server. The server performs scheduling
+calculations and stores results for users to reopen. The simulator renders in
+the browser using server-provided satellite data. Video export uses frames from
+the browser and encodes them with FFmpeg on the server, so the exporting browser
+tab must stay open until the export finishes.
 
-The Dockerfile supports native Linux **amd64** and **arm64** builds. An actual
-Ubuntu deployment/load test has not yet been completed. No client Python or
-FFmpeg installation is required, but clients need a modern browser. Browser
-rendering still contributes to simulator/video performance; the exporting tab
-must stay open until video export finishes.
+The server image does not require PyQt6. Native Linux amd64 and arm64 builds are
+supported by the Dockerfile; target-server testing is still needed.
 
-## Security model and confirmed limitations
+## Technology
 
-**The requested model is shared LAN access without an application login.**
-Network access is therefore the principal access boundary. Everyone who can
-reach the application can access shared missions/results, change libraries and
-antenna availability, publish/delete announcements and edit schedules. There
-are no viewer/operator/admin roles and no reliable person-level audit trail.
-The custom request header and same-origin checks are not authentication.
-
-| Area | Current state / engineering action |
+| Component | Technology |
 | --- | --- |
-| Transport | HTTP by default. Configure HTTPS before entering real Space-Track credentials or using sensitive mission data. Provider-side HTTPS does not encrypt the browser-to-app leg. |
-| Exposure | Restrict to approved network segments/devices; no public internet publishing is proposed. Verify from both allowed and disallowed networks. |
-| Resource exhaustion | Queue, upload and encoder limits exist, but Compose has no explicit CPU/memory quotas or total storage quota. Agree limits and monitor disk, RAM and CPU. |
-| Data retention | Clearing previous jobs hides history entries; it does not reclaim their files. Define retention and disk cleanup procedures. |
-| Auditing | No authenticated user identity. Access logs alone do not attribute operational changes to a named person. |
-| Dependencies | Python dependencies are locked to the tested development container. A dependency/container CVE scan and penetration test have not been completed. Pinning is not a security certification. |
-| Credentials | The web TLE adapter uses Space-Track credentials for the request and does not intentionally persist them to libraries, jobs or exports. Ensure proxies/logging do not record request bodies or credentials. |
-| Backups | Backups contain application and mission data. Restrict access and retain a verified copy off the server. |
+| Calculations | Python, Skyfield, SGP4 |
+| Web service | FastAPI, Uvicorn |
+| Browser interface | HTML, CSS, JavaScript |
+| Graphs | Matplotlib |
+| Video encoding | FFmpeg |
+| Deployment | Docker, Docker Compose, Ubuntu |
+| Desktop version | Python, PyQt6 |
 
-Existing controls include non-root container execution (UID/GID 10001), dropped
-Linux capabilities, no-new-privileges, a read-only TLE import mount, bounded
-requests/jobs and validation of imported data. These reduce risk; they do not
-replace access restrictions, HTTPS or security review.
+## Running the application
 
-Docker-published ports interact with host firewall rules and can bypass ordinary
-UFW filtering. Follow [Docker's firewall documentation](https://docs.docker.com/engine/network/packet-filtering-firewalls/),
-not only a generic UFW allow/deny recipe. FastAPI describes the proposed
-[TLS termination model](https://fastapi.tiangolo.com/deployment/https/).
+The application source is currently maintained in
+[MEOSAR-Scheduler](https://github.com/thomasmariano/MEOSAR-Scheduler). Ensure the
+selected source commit includes the web migration and server helper before
+attempting deployment.
 
-## Connectivity and host requirements
-
-| Purpose | Requirement |
-| --- | --- |
-| User access | Approved browsers reach the internal app endpoint; proposed HTTPS on port 443 through the proxy. |
-| Backend | Current container listens on 8080; restrict access according to proxy placement. |
-| Source updates | Server can retrieve the application repository from GitHub, with read-only access if private. |
-| Image builds | Access to Docker Hub and Python/Ubuntu package repositories for source builds. |
-| Online TLEs | Outbound HTTPS to celestrak.org and www.space-track.org. |
-| Offline TLEs | Browser upload and an optional read-only server import folder remain available. |
-| Maintenance | Administratively controlled SSH/Docker access, backups, monitoring and sufficient writable disk. |
-
-Exact CPU, memory, disk capacity, storage retention and concurrency requirements
-must be measured using representative missions/videos. Current defaults permit
-one running scheduling job plus four waiting and one video encoder at a time.
-These are application limits, not performance guarantees.
-
-## Data ownership and persistence
-
-Runtime data is stored in the Compose named volume mounted at `/data`, separately
-from the application image and Git checkout. It includes configured libraries,
-TLEs, jobs, saved schedule snapshots, edits, calendar events, announcements,
-monitoring locations and videos. The optional host TLE-import folder is separate
-and needs its own backup if its original files matter.
-
-- Git updates code; they do not synchronize the Mac's browser data to Ubuntu.
-- Server libraries are initialized from bundled defaults only when missing;
-  updating defaults in Git does not overwrite existing server library edits.
-- Completed jobs retain frozen inputs. An antenna outage affects new calculations,
-  not previously completed schedules.
-- Notification read/unread state and some preferences are browser-local.
-- Keep the normal Compose project name and env settings stable across updates.
-- Do not use `docker compose down -v` on the live deployment: it removes its volume.
-
-No operational mission records, credentials, server addresses or live data are
-included in this documentation repository. Application source and bundled defaults
-should receive the organization's review before they are shared or deployed.
-
-## First deployment outline
-
-Install Docker Engine and Compose using the [official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/).
-Confirm the deployment account can operate Docker. Then, after the tested web
-migration commit is published in the **application source repository**:
+Install Docker Engine and the Compose plugin using the
+[official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/).
+Then, in the application checkout:
 
 ```bash
-mkdir -p ~/apps
-cd ~/apps
-git clone https://github.com/thomasmariano/MEOSAR-Scheduler.git
-cd MEOSAR-Scheduler
-# Check out the tested commit/tag agreed with Thomas before starting.
 cp ubuntu.env.example ubuntu.env
 nano ubuntu.env
 bash scripts/server.sh start
 bash scripts/server.sh status
 ```
 
-Configure the bind address/port for the agreed network topology. Keep `ubuntu.env`
-host-specific and out of Git. Do not assume this handoff repository can be run:
-Dockerfile, Compose, scripts and application modules live in the source repository.
+Set the bind address and port in `ubuntu.env` for the intended network. The
+current application port is **8080**. The local development default binds to
+**127.0.0.1**; the Ubuntu configuration can bind to a server LAN address.
 
-The helper builds, starts the container, waits for its health check and records
-the deployed source commit. The full source-side instructions are in
-`docs/UBUNTU_LAN_DEPLOYMENT.md` after those files are published.
+Once deployed, users open the server address in their browser. They do not need
+a local Python environment or FFmpeg installation.
 
-## Updates and recovery
+## Network deployment
 
-Thomas develops/tests on the Mac and commits/pushes code. On Ubuntu, an operator
-waits for running calculations/video exports to finish, then explicitly deploys:
+My intended setup is a shared internal-network service without an application
+login. Everyone who can reach it can access shared missions, edit libraries,
+change antenna availability, and manage announcements. Network access must
+therefore be restricted to the intended users/devices.
+
+The main items to agree with the network engineer are:
+
+- Ubuntu version, processor architecture, CPU, memory, and storage capacity.
+- Internal DNS name, permitted network segments, and firewall rules.
+- HTTPS certificate and reverse proxy configuration.
+- Outbound access for GitHub, Docker/package downloads, and online TLE sources.
+- Backup location, retention, monitoring, and maintenance responsibility.
+
+The current service uses HTTP by default. Configure HTTPS before entering real
+Space-Track credentials or using sensitive mission data. Docker-published ports
+can bypass ordinary UFW filtering; review
+[Docker's firewall guidance](https://docs.docker.com/engine/network/packet-filtering-firewalls/).
+
+## Saved data
+
+Application data is stored in the Docker volume mounted at `/data`. This includes
+libraries, TLEs, missions, schedules, edits, calendar events, announcements, and
+videos. The optional server TLE-import folder is mounted read-only and is backed
+up separately if its original files need to be retained.
+
+Git updates application code; it does not synchronize my Mac's saved browser
+data with the server. Container updates preserve the server data volume.
+Existing server library edits are not overwritten by updated bundled defaults.
+
+**Do not run `docker compose down -v` on the live deployment:** it deletes the
+persistent volume. Clearing previous jobs removes them from history but does
+not reclaim their stored files.
+
+## Updates and backups
+
+My update workflow is to test changes locally, commit and push them, then deploy
+a tested commit on the server. For a server following the source repository's
+`main` branch:
 
 ```bash
-cd ~/apps/MEOSAR-Scheduler
 git pull --ff-only origin main
 bash scripts/server.sh update
 ```
 
-For controlled release promotion, agree a tested tag/commit instead of following
-arbitrary newest-main changes. No GitHub webhook or automatic live deployment is
-currently configured.
-
-The helper requires a clean checkout, backs up data consistently, rebuilds,
-recreates the service, waits for health and records the successful commit.
-Expect short downtime; this is not a zero-downtime architecture. Users should
-hard-refresh their browser after an update.
+Wait for active calculations and video exports to finish first. The helper
+creates a backup, rebuilds the image, restarts the service, and checks its health.
+Updates involve short downtime. Use tested tags/commits for controlled releases;
+there is no automatic deployment webhook currently configured.
 
 ```bash
 bash scripts/server.sh backup
 bash scripts/server.sh logs
-cat .deployment/deployed-commit
-cat .deployment/previous-commit
 ```
 
-Backup archives are stored in ignored `backups/`; copy them off-host. A code
-rollback is a deliberate checkout/rebuild. A data format change may require a
-matching data backup; automatic rollback/restore is not implemented. Test restore
-into a separate Compose project/port before relying on recovery procedures.
+Keep backup copies off the server and test a restore into a separate instance.
+Code rollback and data restoration are deliberate operations, not automatic.
 
-## Engineering review and acceptance checklist
+## Current limitations
 
-- [ ] Approve source/data classification, repository access and intended use.
-- [ ] Identify Ubuntu version/architecture, CPU/RAM/disk and responsible operator.
-- [ ] Agree DNS name, HTTPS certificate and reverse-proxy/backend configuration.
-- [ ] Approve the shared no-login access model and permitted network segments.
-- [ ] Verify published ports/firewall rules from allowed and disallowed clients.
-- [ ] Approve egress destinations or plan an offline image-transfer alternative.
-- [ ] Scan dependencies/container and resolve unacceptable findings.
-- [ ] Configure resource limits, disk monitoring and retention responsibilities.
-- [ ] Generate a representative mission and compare identical inputs/TLEs with the Mac.
-- [ ] Test saved missions, schedule editing, simulator and short video export.
-- [ ] Verify a test announcement in two independent browsers within 15 seconds.
-- [ ] Verify persistence after container recreation and a host restart.
-- [ ] Back up and restore into a separate test instance.
-- [ ] Record the accepted source commit, recovery procedure and maintenance owner.
+- Ubuntu deployment and performance testing are still pending.
+- No application accounts, permission roles, or person-level audit trail.
+- CPU/memory quotas, total storage limits, and retention need deployment configuration.
+- Dependency and container vulnerability scanning and penetration testing are pending.
+- Shared announcements are in-app notices, not email or desktop push notifications.
+- Notification read status and some display preferences are local to each browser.
 
-The next step is a controlled test deployment and review with engineering—not an
-assertion that the application is approved for unrestricted operational use.
+The container already runs as a non-root user, drops Linux capabilities, and
+uses bounded uploads/jobs. These protections do not replace a security review.
+This is a mission-planning and visualization tool; operational acceptance of
+its calculations is separate from approving the network deployment.
+
+## Development
+
+I maintain the project and its scheduling/simulation features. The next step is
+to test the browser version on the intended Ubuntu server, verify persistence
+and backups, and agree the network configuration before wider use.

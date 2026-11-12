@@ -2,7 +2,7 @@
 'use strict';
 (() => {
   const cfg=simulatorConfig;let activeId=null;
-  const launch=document.createElement('button');launch.className='action';launch.textContent='Video Studio';document.querySelector('header').nextElementSibling.append(launch);
+  const launch=document.createElement('button');launch.className='action';launch.textContent='Video Studio';(document.getElementById('simulatorExportActions')||document.querySelector('header').nextElementSibling).append(launch);
   async function apiVideo(path,body){const response=await fetch('/api/'+path,body===undefined?{cache:'no-store'}:{method:'POST',headers:{'Content-Type':'application/json','X-MEOSAR-Request':'1'},body:JSON.stringify(body)});const data=await response.json();if(!response.ok)throw Error(data.detail||'Video request failed.');return data;}
   const prefix=`jobs/${cfg.job_id}/videos`;
   window.addEventListener('pagehide',()=>{if(activeId)fetch(`/api/${prefix}/${activeId}/cancel`,{method:'POST',headers:{'Content-Type':'application/json','X-MEOSAR-Request':'1'},body:'{}',keepalive:true}).catch(()=>{});});

@@ -24,6 +24,8 @@ COPY reports/ reports/
 COPY web/ web/
 COPY simulation/ simulation/
 COPY assets/earth_texture.jpg assets/earth_texture.jpg
+COPY assets/SARLogo.png assets/SARLogo.png
+COPY assets/SARLogo.ico assets/SARLogo.ico
 # COPY preserves host permissions. Atomic desktop configuration saves can be
 # owner-only (0600); image files belong to root while the app runs as UID 10001.
 # Normalize image resources to readable files/traversable directories only.

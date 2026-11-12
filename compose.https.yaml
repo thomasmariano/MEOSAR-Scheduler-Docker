@@ -1,0 +1,51 @@
+# Optional nginx TLS termination, matching the coworker's certificate-file model.
+# Use with compose.yaml; Docker Compose >= 2.24.4 required for !override.
+services:
+  web:
+    ports: !override []
+    # No host port: only the private Compose network can reach this backend.
+    # nginx replaces forwarded headers, so trust its proxy headers here only.
+    command: ["python", "-m", "uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+  https:
+    image: ${MEOSAR_NGINX_IMAGE:-nginx:stable-alpine}
+    depends_on:
+      web:
+        condition: service_healthy
+    ports:
+      - "${MEOSAR_BIND_ADDRESS:-127.0.0.1}:${MEOSAR_HTTPS_PORT:-4443}:4443"
+    volumes:
+      - type: bind
+        source: ./deploy/nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MEOSAR_CERT_DIRECTORY:-./certs}
+        target: /etc/nginx/certs
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    # Root master reads a 0600 host key and starts unprivileged nginx workers.
+    cap_add: [CHOWN, DAC_OVERRIDE, SETGID, SETUID]
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t -q && kill -0 $$(cat /var/run/nginx.pid)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

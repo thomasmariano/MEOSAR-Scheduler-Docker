@@ -4,6 +4,12 @@ This repository contains the standalone browser app. The desktop app remains in 
 container from source for its own amd64 or arm64 processor. No Mac app bundle,
 ZIP export, Python environment, or client-side installation is needed.
 
+The planned Ubuntu installation is a **fresh installation**. Transfer the source
+through GitHub, not the Mac's runtime data. Default location/satellite/antenna
+libraries are bundled; import/download TLEs and create announcements/calendar
+events on Ubuntu. The backup/restore section is for later recovery or an optional
+migration, not a requirement for this first deployment.
+
 ## 1. Publish the tested source from your Mac
 
 From the project root:
@@ -53,6 +59,11 @@ transfer workflow instead; cloning alone cannot supply missing image/packages.
 
 ## 3. First install on the server
 
+The Ubuntu env example enables nginx HTTPS. Follow [HTTPS.md](HTTPS.md) to supply
+`certs/server.crt` and `certs/server.key` before starting. Default HTTPS is 4443
+to avoid another application already using 443; the backend port stays private.
+
+
 Run these on Ubuntu, not on the Mac:
 
 ```bash
@@ -69,8 +80,8 @@ a read-only repository deploy key. Do not place a token in the repository URL
 or commit it to an env/config file.
 
 Set MEOSAR_BIND_ADDRESS to the server LAN IP, such as 192.168.1.50, or use
-0.0.0.0 to listen on all interfaces. Keep MEOSAR_PORT=8080 unless it conflicts
-with another service. ubuntu.env is ignored by Git and survives pulls.
+0.0.0.0 to listen on all interfaces. Set MEOSAR_HTTPS=1 and choose an available MEOSAR_HTTPS_PORT (default 4443).
+MEOSAR_PORT applies only to HTTP-only mode. ubuntu.env is ignored by Git and survives pulls.
 The default TLE-import folder is ./tle-imports; set MEOSAR_TLE_IMPORT_DIR to
 an absolute host directory if needed. That folder is mounted read-only.
 
@@ -86,7 +97,7 @@ The first build takes longer while dependencies and FFmpeg download.
 On any computer on the same network, open:
 
 ```text
-http://SERVER_LAN_IP:8080
+https://SERVER_NAME_ON_CERTIFICATE:4443
 ```
 
 There is no application login, as requested. Everyone with network access can
@@ -135,10 +146,9 @@ The update helper refuses a dirty checkout, creates a consistent backup while
 the service is briefly stopped, restarts the existing service, then builds and
 recreates it with the updated code and waits for health. It records the new
 commit only after successful startup. Existing data stays in the same volume.
-Bundled config defaults only seed missing server libraries; a Git pull does not overwrite existing server library edits. Use the web library editors/import tools to change those deliberately. Announcements posted on the Mac are also local to its Docker data, not shipped through Git.
+Bundled config defaults only seed missing server libraries; a Git pull does not overwrite existing server library edits. Use the web library editors to add, edit or remove individual records. Whole-library JSON replacement is disabled; TLE imports remain available. Announcements posted on the Mac are also local to its Docker data, not shipped through Git.
 
-Users should hard-refresh after an update. Expect short downtime; this is a
-single-container deployment, not a zero-downtime rollout.
+Users should hard-refresh after an update. Expect short downtime; the app has a single web service behind nginx, not a zero-downtime rollout.
 
 No webhook or automatic pull is required. A GitHub push does not change the
 server until someone runs these server commands. This keeps deployment timing
@@ -182,10 +192,11 @@ Replace the archive name below with the real timestamped filename:
 docker compose -p meosar-web-restore --env-file ubuntu.env run --rm --no-deps -T web python -c \
   'import sys,tarfile; a=tarfile.open(fileobj=sys.stdin.buffer,mode="r|gz"); a.extractall("/data",filter="data"); a.close()' \
   < backups/REPLACE_WITH_BACKUP.tar.gz
-MEOSAR_PORT=8081 docker compose -p meosar-web-restore --env-file ubuntu.env up -d --no-build --wait
+MEOSAR_BIND_ADDRESS=127.0.0.1 MEOSAR_PORT=8081 docker compose -p meosar-web-restore --env-file ubuntu.env up -d --no-build --wait
 ```
 
-Check the restored app at http://SERVER_LAN_IP:8081. This test uses a separate
+This manual restore test intentionally uses HTTP on server loopback only. Check
+http://127.0.0.1:8081 on the server, or use an approved SSH tunnel. This uses a separate
 volume and does not overwrite the live application. A Mac-browser-data transfer
 can use the same /data archive format, restoring into a fresh server volume
 before first operational use. Do not overwrite existing server data casually.

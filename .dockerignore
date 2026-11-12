@@ -43,5 +43,7 @@
 !simulation/web/*.html
 !assets/
 !assets/earth_texture.jpg
+!assets/SARLogo.png
+!assets/SARLogo.ico
 
 !simulation/schedule_parser.py

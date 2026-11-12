@@ -73,6 +73,7 @@ def dashboard_template():
     texture=Path(__file__).resolve().parents[1]/'assets/earth_texture.jpg'
     encoded=base64.b64encode(texture.read_bytes()).decode() if texture.is_file() else ''
     html=load_dashboard_html().replace('__EARTH_TEXTURE_BASE64__',encoded)
+    html=html.replace('<head>', '<head><link rel="icon" type="image/png" href="/app-icon.png">',1)
     html=html.replace('  for (const location of coverageLocations()) {', '  const locationLabels=[],seenLocations=new Set();\n  for (const location of coverageLocations()) {')
     html=html.replace('    if (p.depth <= 0) continue;\n    const summary = coverageSummary(location);', "    if (p.depth <= 0) continue;\n    const identity=location.name+'|'+Number(location.latitude).toFixed(4)+'|'+Number(location.longitude).toFixed(4);if(seenLocations.has(identity))continue;seenLocations.add(identity);\n    const summary = coverageSummary(location);")
     old="""    const labelX=Math.max(8,Math.min(p.x+13,W-textWidth-14));
@@ -96,7 +97,7 @@ def simulator_page(job_id:str,request:Request,revision:str='original'):
     path=find_job(request,job_id);data=bootstrap(path,revision)
     payload=json.dumps(data).replace('<','\\u003c')
     html=dashboard_template().replace('</body>',
-        '<script>const simulatorConfig='+payload+';</script><script src="/simulator_bridge.js"></script><script src="/video_studio.js"></script><script src="/web_ui.js"></script></body>')
+        '<script>const simulatorConfig='+payload+';</script><script src="/simulator_import.js"></script><script src="/simulator_bridge.js"></script><script src="/video_studio.js"></script><script src="/web_ui.js"></script></body>')
     return HTMLResponse(html,headers={'Cache-Control':'no-store'})
 
 
@@ -212,3 +213,13 @@ def search_event(path,data):
 async def simulation_event(job_id:str,request:Request):
     data=await read_json(request,32*1024)
     return await run_in_threadpool(search_event,find_job(request,job_id),data)
+
+
+@router.get('/simulator_import.js')
+def simulator_import_script():
+    return FileResponse(Path(__file__).with_name('simulator_import.js'),media_type='text/javascript',headers={'Cache-Control':'no-cache'})
+
+
+@router.get('/simulator', response_class=HTMLResponse)
+def simulator_upload_page():
+    return HTMLResponse("""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MEOSAR Simulator</title><link rel="icon" href="/app-icon.png"><style>body{margin:0;background:#091321;color:#e5f1ff;font:15px system-ui}main{max-width:900px;margin:50px auto;padding:24px}button,select,input{font:inherit}button{padding:10px 16px;cursor:pointer;border-radius:7px;border:1px solid #6086a9;background:#1d4164;color:white}a{color:#82c5ff}dialog::backdrop{background:#000a}dialog label{display:block}dialog p{line-height:1.5}</style></head><body><main><img src="/app-icon.png" width="64" height="64" alt="SAR logo"><h1>MEOSAR Simulator</h1><p>Upload a schedule directly. No new scheduler run needs to be configured in the scheduler interface.</p><button onclick="window.openSimulatorUpload()">Upload schedule and simulate</button><p><a href="/">Scheduler</a></p></main><script>const simulatorConfig={job_id:null};</script><script src="/simulator_import.js"></script><script src="/web_ui.js"></script><script>window.openSimulatorUpload();</script></body></html>""",headers={'Cache-Control':'no-store'})

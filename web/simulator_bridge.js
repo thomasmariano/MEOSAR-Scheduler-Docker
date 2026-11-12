@@ -10,20 +10,23 @@
   async function update(){if(window.meosarVideoBusy||inFlight||navigating||!schedule)return;const command=getSimulationRequest().command;if(command?.action==='coverage'){await navigate(command);return;}const key=JSON.stringify([getSimulationTime(),pins,showOrbitPaths,showGroundTracks]);if(key===lastKey)return;inFlight=true;try{const pathKey=Math.floor(simTimeMs/300000);const body=packet();body.paths=(showOrbitPaths||showGroundTracks)&&lastPathKey!==pathKey;const data=await call('frame',body);lastKey=key;if(!window.meosarVideoBusy){setOrbitData(data.results);if(data.paths){setOrbitPaths(data.paths);lastPathKey=pathKey;}}}catch(error){if(error.status!==429)setOrbitError(error.message);}finally{inFlight=false;}}
   async function navigate(command){navigating=true;try{const data=await call('event',{...packet(),command});finishCoverageNavigation(data);}catch(error){finishCoverageNavigation({id:command.id,status:'error',message:error.message});}finally{navigating=false;lastKey='';update();}}
   function persist(){try{localStorage.setItem(storageKey,JSON.stringify({pins,dashboard:JSON.parse(dashboardStateJSON())}));}catch{}}
-  const tools=document.createElement('div');tools.className='control-row';tools.style.cssText='padding:10px 18px;display:flex;flex-wrap:wrap;gap:10px;background:#0d1b2a';
-  function button(title,action){const b=document.createElement('button');b.className='action';b.textContent=title;b.onclick=action;tools.append(b);return b;}
-  const back=document.createElement('a');back.href='/';back.textContent='← Scheduler';back.style.color='#7bdaff';tools.append(back);
-  const title=document.createElement('span');title.className='panel-note';title.textContent=cfg.mission_name+' · '+(cfg.revision==='original'?'Original schedule':'Edited revision');tools.append(title);
+  const tools=document.createElement('div');tools.className='control-row simulator-toolbar';tools.style.cssText='padding:10px 18px;display:flex;flex-wrap:wrap;gap:10px;background:#0d1b2a';
+  const toolbarGroups={};for(const [key,label]of [['schedule','Schedules'],['view','View & locations'],['tle','TLE data'],['export','Export']]){const group=document.createElement('div');group.className='simulator-toolbar-group';group.setAttribute('role','group');group.setAttribute('aria-label',label);const heading=document.createElement('div');heading.className='simulator-toolbar-group-title';heading.textContent=label;const actions=document.createElement('div');actions.className='simulator-toolbar-actions';group.append(heading,actions);tools.append(group);toolbarGroups[key]=actions;}
+  toolbarGroups.export.id='simulatorExportActions';
+  function button(title,action){const b=document.createElement('button');b.type='button';b.className='action';b.textContent=title;b.onclick=action;const group=['Dashboard','Monitoring pins'].includes(title)?'view':title.includes('TLE')?'tle':'schedule';toolbarGroups[group].append(b);return b;}
+  const back=document.createElement('a');back.href='/';back.textContent='← Scheduler';back.style.color='#7bdaff';toolbarGroups.schedule.append(back);
+  const title=document.createElement('span');title.className='panel-note';title.textContent=cfg.mission_name+' · '+(cfg.revision==='original'?'Original schedule':'Edited revision');const info=document.createElement('div');info.className='simulator-toolbar-info';tools.append(info);info.append(title);
   button('Dashboard',()=>openDashboardOptions());
   async function sharedApi(path,body){const response=await fetch('/api/'+path,body===undefined?{cache:'no-store'}:{method:'POST',headers:{'Content-Type':'application/json','X-MEOSAR-Request':'1'},body:JSON.stringify(body)});const value=await response.json();if(!response.ok)throw Error(value.detail||'Request failed.');return value;}
-  const sourceCaption=document.createElement('span');sourceCaption.className='panel-note';sourceCaption.textContent='TLE: '+(cfg.tle_source||'Frozen snapshot');tools.append(sourceCaption);
+  const sourceCaption=document.createElement('span');sourceCaption.className='panel-note';sourceCaption.textContent='TLE: '+(cfg.tle_source||'Frozen snapshot');info.append(sourceCaption);
   button('Load schedule / latest',async()=>{
     const modal=document.createElement('dialog');modal.style.cssText='background:#102033;color:#e5f4ff;border:1px solid #41657d;border-radius:10px;padding:20px;width:min(750px,95vw)';
     const heading=document.createElement('h3');heading.textContent='Completed schedules';modal.append(heading);const rows=document.createElement('div'),note=document.createElement('p');rows.style.maxHeight='55vh';rows.style.overflow='auto';modal.append(note,rows);
     function action(label,fn){const b=document.createElement('button');b.className='action';b.textContent=label;b.onclick=fn;modal.append(b);return b;}
     action('Close',()=>modal.close());modal.addEventListener('close',()=>modal.remove());document.body.append(modal);modal.showModal();
-    try{const jobs=(await sharedApi('jobs')).filter(row=>row.state==='completed');if(jobs.length){action('Load latest completed',()=>{location.href='/simulator/'+jobs[0].id;});for(const job of jobs){const b=document.createElement('button');b.className='action';b.style.cssText='display:block;width:100%;margin:8px 0;text-align:left';b.textContent=job.mission_name+' · '+(job.finished_at||'');b.onclick=()=>{location.href='/simulator/'+job.id;};rows.append(b);}}else note.textContent='No completed schedules found.';action('Import an existing schedule',()=>window.open('/?loadSchedule=1','_blank','noopener'));}catch(error){note.textContent=error.message;}
+    try{const jobs=(await sharedApi('jobs')).filter(row=>row.state==='completed');if(jobs.length){action('Load latest completed',()=>{location.href='/simulator/'+jobs[0].id;});for(const job of jobs){const b=document.createElement('button');b.className='action';b.style.cssText='display:block;width:100%;margin:8px 0;text-align:left';b.textContent=job.mission_name+' · '+(job.finished_at||'');b.onclick=()=>{location.href='/simulator/'+job.id;};rows.append(b);}}else note.textContent='No completed schedules found.';action('Upload schedule and simulate',()=>{modal.close();window.openSimulatorUpload();});}catch(error){note.textContent=error.message;}
   });
+  button('Upload schedule',()=>window.openSimulatorUpload());
   button('Import / download TLE',()=>window.open('/?tleSources=1','_blank','noopener'));
   button('Replay with another TLE',async()=>{
     const modal=document.createElement('dialog');modal.style.cssText='background:#102033;color:#e5f4ff;border:1px solid #41657d;border-radius:10px;padding:20px;width:min(750px,95vw)';
@@ -53,6 +56,31 @@
     function renderLibrary(){sharedRows.replaceChildren();for(const [name,value]of Object.entries(library.records).sort(([a],[b])=>a.localeCompare(b))){const row=document.createElement('p');row.textContent=name+' ';action(row,'Pin',()=>addPin({name,...value,saved:true}));action(row,'Edit',()=>{original=name;remember.checked=true;for(const key of ['name','latitude','longitude','elevation'])fields[key].value=key==='name'?name:value[key];});action(row,'Delete saved',async()=>{if(!confirm('Delete '+name+' from the shared monitoring library? Existing selected pins keep their coordinates.'))return;try{library=await sharedApi('monitoring-locations',{action:'delete',revision:library.revision,original:name});renderLibrary();if(original===name)clearEditor();}catch(error){status.textContent=error.message;}});sharedRows.append(row);}if(!Object.keys(library.records).length)sharedRows.textContent='No saved monitoring locations yet.';}
     action(modal,'Close',()=>modal.close());modal.addEventListener('close',()=>modal.remove());document.body.append(modal);refresh();modal.showModal();try{library=await sharedApi('monitoring-locations');renderLibrary();}catch(error){status.textContent=error.message;}
   });
+  const embedded=new URLSearchParams(location.search).get('embed')==='1';
+  if(!embedded){document.documentElement.classList.add('simulator-full');const hint=document.createElement('div');hint.className='simulator-size-hint';hint.textContent='For the full dashboard, enlarge the window to at least 1024 × 720 or scroll to reach all controls.';tools.append(hint);}
+  const toolbarStyle=document.createElement('style');toolbarStyle.textContent=`
+#app>header{flex:0 0 auto;flex-wrap:wrap;min-width:0}
+#app>header .brand{flex:1 1 280px;min-width:0}
+#app>header .brand>div{min-width:0}
+#app>header .logo,#app>header .brand>img{flex:none}
+#app>header h1{font-size:clamp(12px,2.3vw,15px);letter-spacing:1px;overflow-wrap:anywhere}
+#app>header .subhead{line-height:1.5;overflow-wrap:anywhere}
+#app>header .status{flex:0 0 auto;max-width:100%;overflow-wrap:anywhere}
+#app>.simulator-toolbar{flex:0 0 auto;min-width:0;align-items:center;max-height:28vh;overflow-y:auto;overscroll-behavior:contain}
+.simulator-toolbar-actions>.action,.simulator-toolbar-actions>a{flex:0 0 auto;white-space:nowrap;min-height:34px;max-width:100%}
+.simulator-toolbar-info{order:2;flex:1 0 100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px;border-top:1px solid var(--line);padding-top:8px}
+.simulator-toolbar-info>.panel-note{min-width:0;overflow-wrap:anywhere;line-height:1.5}
+@media(max-width:600px){#app>header{padding:10px 12px;gap:8px}#app>.simulator-toolbar{padding:8px 12px!important;gap:7px!important}.simulator-toolbar-info{grid-template-columns:minmax(0,1fr)}.simulator-toolbar-actions>.action{padding:7px 9px;font-size:11px}}
+
+.simulator-toolbar-group{flex:0 1 auto;min-width:0;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:#0a1523}
+.simulator-toolbar-group-title{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.simulator-toolbar-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.simulator-toolbar-actions>a{padding:8px 0}
+.simulator-size-hint{display:none;order:3;flex-basis:100%;color:var(--orange);font-size:11px;line-height:1.5}
+html.simulator-full,html.simulator-full body{overflow:auto}
+html.simulator-full #app{min-width:1024px;min-height:720px}
+@media(max-width:1023px),(max-height:719px){.simulator-full .simulator-size-hint{display:block}}
+`;document.head.append(toolbarStyle);
   document.querySelector('header').after(tools);
   setSatelliteMetadata(cfg.metadata);setStation(cfg.station);setLandingSite(cfg.mission_site);loadSchedule(cfg.schedule);
   try{const stored=JSON.parse(localStorage.getItem(storageKey)||'{}');if(Array.isArray(stored.pins))pins=stored.pins.slice(0,10);if(stored.dashboard)restoreDashboardState(stored.dashboard);}catch{}

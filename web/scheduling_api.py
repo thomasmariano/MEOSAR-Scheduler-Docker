@@ -174,10 +174,7 @@ def resources():
 @router.post('/libraries/{kind}')
 async def import_library(kind:str,request:Request):
     if kind not in LIBRARIES:_error('Unknown library.',404)
-    data=validate_library(kind,await read_json(request))
-    with library_lock:
-        save_json(kind+'.json',data)
-    return {'kind':kind,'records':len(data)}
+    _error('Whole-library uploads are disabled. Use Manage libraries to add, edit or remove individual records.',405)
 
 
 @router.post('/tles')
@@ -242,13 +239,15 @@ async def submit_job(request:Request):
     return await queue_mission(request,entry)
 
 
-async def queue_mission(request,entry,imported=None):
+async def queue_mission(request,entry,imported=None,location_overrides=None):
     if not _label(entry.mission_name):_error('Mission name must be one nonempty line.')
     if entry.event_type not in ('Landing','Launch','Testing'):_error('Choose a supported event type.')
     if entry.event_time.tzinfo is None:_error('Event time must include UTC or timezone offset.')
     if not 0<entry.hours_before+entry.hours_after<=2*(168+59/60):_error('Tracking window must be greater than zero and at most 168 h 59 min before and after the event.')
     with library_lock:
         libraries={kind:validate_library(kind,loader()) for kind,loader in LIBRARIES.items()}
+    if location_overrides:
+        libraries['locations']=validate_library('locations',{**libraries['locations'],**location_overrides})
     if entry.mission_location not in libraries['locations'] or entry.ground_station not in libraries['locations']:_error('Choose saved locations.')
     if any(v not in libraries['satellites'] for v in entry.satellites):_error('Selected satellite is not in the server library.')
     if any(v not in libraries['antennas'] or not libraries['antennas'][v]['operational'] for v in entry.antennas):_error('Choose operational antennas.')
@@ -321,7 +320,12 @@ def job_file(job_id:str,name:str,request:Request,inline:bool=False):
     folder='graphs' if name.endswith('.png') else 'exports' if name.startswith('schedule.') else ''
     target=path/folder/name
     if not target.is_file():_error('File not found.',404)
-    return FileResponse(target,filename=None if inline and name.endswith('.png') else name,media_type='image/png' if name.endswith('.png') else 'application/json' if name.endswith('.json') else 'text/plain')
+    download_name=name
+    if name in {'schedule.txt','schedule.metadata.json'}:
+        from .export_names import export_basename
+        base=export_basename(json.loads((path/'result.json').read_text()),json.loads((path/'mission.json').read_text()))
+        download_name=base+('.txt' if name=='schedule.txt' else '.metadata.json')
+    return FileResponse(target,filename=None if inline and name.endswith('.png') else download_name,media_type='image/png' if name.endswith('.png') else 'application/json' if name.endswith('.json') else 'text/plain')
 
 
 def library_revision(data):

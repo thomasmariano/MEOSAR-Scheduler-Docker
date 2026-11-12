@@ -18,6 +18,7 @@ from .video_api import router as video_router, VideoService
 from .schedule_import_api import router as import_router
 from .simulator_workflows import router as simulator_workflows_router
 from .saved_missions_api import router as saved_missions_router
+from .files_api import router as files_router
 
 CONFIG_FILES = ('antennas.json', 'locations.json', 'satellites.json')
 
@@ -61,11 +62,14 @@ async def lifespan(app):
     seed_libraries(config, CONFIG_DIRECTORY)
     app.state.jobs = JobService(root)
     app.state.videos = VideoService(root)
+    from .file_library import FileLibrary
+    app.state.file_library = FileLibrary(root)
     app.state.ready = True
     try:
         yield
     finally:
         app.state.ready = False
+        app.state.file_library.close()
         app.state.jobs.shutdown()
         app.state.videos.close()
 
@@ -98,7 +102,7 @@ def status():
                       'enabled_satellites': sum(bool(s.get('enabled')) for s in satellites.values()),
                       'antennas': len(antennas),
                       'operational_antennas': sum(bool(a.get('operational')) for a in antennas.values())},
-        'storage': 'Persistent container volume; independent of desktop libraries',
+        'storage': ('Host folder with readable export library; independent of desktop libraries' if os.environ.get('MEOSAR_EXPORT_DIRECTORY') else 'Persistent container volume; independent of desktop libraries'),
     }
 
 
@@ -115,6 +119,7 @@ app.include_router(video_router)
 app.include_router(import_router)
 app.include_router(simulator_workflows_router)
 app.include_router(saved_missions_router)
+app.include_router(files_router)
 
 
 @app.get('/workspace.js')
@@ -140,3 +145,13 @@ def draft_editor_script():
 @app.get('/web_ui.js')
 def web_ui_script():
     return FileResponse(Path(__file__).with_name('web_ui.js'),media_type='text/javascript',headers={'Cache-Control':'no-cache'})
+
+
+@app.get('/app-icon.png', include_in_schema=False)
+def app_icon():
+    return FileResponse(Path(__file__).resolve().parents[1]/'assets/SARLogo.png', media_type='image/png')
+
+
+@app.get('/favicon.ico', include_in_schema=False)
+def favicon():
+    return FileResponse(Path(__file__).resolve().parents[1]/'assets/SARLogo.ico', media_type='image/x-icon')

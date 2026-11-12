@@ -17,3 +17,10 @@ backups/
 output/
 Video/
 *.log
+
+# Certificates and keys are host-local secrets, never repository files
+/certs/
+*.key
+*.p12
+*.pfx
+*.pem

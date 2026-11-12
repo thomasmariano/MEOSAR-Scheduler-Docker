@@ -12,7 +12,17 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
 fi
 command -v docker >/dev/null || { echo 'Install Docker Engine and the Compose plugin first.' >&2; exit 1; }
-dc() { docker compose --env-file "$ENV_FILE" "$@"; }
+HTTPS_MODE="${MEOSAR_HTTPS:-$(awk -F= '$1 == "MEOSAR_HTTPS" {print $2}' "$ENV_FILE" | tail -n1)}"
+HTTPS_MODE="${HTTPS_MODE:-0}"
+COMPOSE_FILES=(-f compose.yaml)
+FILES_ROOT="${MEOSAR_FILES_DIRECTORY:-$(awk -F= '$1 == "MEOSAR_FILES_DIRECTORY" {print substr($0,index($0,"=")+1)}' "$ENV_FILE" | tail -n1)}"
+if [[ -n "$FILES_ROOT" ]]; then COMPOSE_FILES+=(-f compose.files.yaml); fi
+case "$HTTPS_MODE" in
+    1) COMPOSE_FILES+=(-f compose.https.yaml) ;;
+    0) ;;
+    *) echo 'Use MEOSAR_HTTPS=0 or MEOSAR_HTTPS=1 (unquoted) in the env file.' >&2; exit 1 ;;
+esac
+dc() { docker compose --env-file "$ENV_FILE" "${COMPOSE_FILES[@]}" "$@"; }
 dc version >/dev/null
 dc config --quiet
 
@@ -25,7 +35,7 @@ backup() (
     if [[ "$(docker inspect --format '{{.State.Running}}' "$container")" == true ]]; then
         restart=true
     fi
-    trap 'result=$?; if [[ "$restart" == true ]]; then dc up -d --no-build --wait --wait-timeout 180 web || result=1; fi; exit "$result"' EXIT
+    trap 'result=$?; if [[ "$restart" == true ]]; then dc up -d --no-build --wait --wait-timeout 180 || result=1; fi; exit "$result"' EXIT
     dc stop web
     # A stopped writer gives a consistent archive. No data is migrated or deleted.
     dc run --rm --no-deps -T web python -c \
@@ -49,7 +59,7 @@ record_deployment() {
 
 case "$ACTION" in
     start)
-        dc up -d --build --wait --wait-timeout 180 web
+        dc up -d --build --wait --wait-timeout 180
         record_deployment
         ;;
     update)
@@ -59,11 +69,11 @@ case "$ACTION" in
         }
         echo 'Wait for active calculations and video exports to finish before updating.'
         backup
-        dc up -d --build --wait --wait-timeout 180 web
+        dc up -d --build --wait --wait-timeout 180
         record_deployment
         ;;
     backup) backup ;;
     status) dc ps ;;
-    logs) dc logs --tail=100 web ;;
+    logs) dc logs --tail=100 ;;
     *) echo 'Usage: bash scripts/server.sh {start|update|backup|status|logs} [ubuntu.env]' >&2; exit 2 ;;
 esac

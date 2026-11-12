@@ -265,7 +265,12 @@ def edited_file(job_id: str, revision: str, name: str, request: Request, inline:
             _error('Revision not found.',404)
         target = path/'edits'/revision/name
         if not target.is_file():_error('File not found.',404)
-    return FileResponse(target, filename=None if inline and name.endswith('.png') else name,
+    download_name=name
+    if name in {'schedule.txt','schedule.metadata.json'}:
+        from .export_names import export_basename
+        base=export_basename(json.loads((path/'edits'/revision/'result.json').read_text()),json.loads((path/'mission.json').read_text()),revision)
+        download_name=base+('.txt' if name=='schedule.txt' else '.metadata.json')
+    return FileResponse(target, filename=None if inline and name.endswith('.png') else download_name,
         media_type='image/png' if name.endswith('.png') else 'application/json' if name.endswith('.json') else 'text/plain')
 
 

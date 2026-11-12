@@ -82,7 +82,7 @@ async def inspect_schedule(request:Request):
 async def import_schedule(request:Request):
     from .scheduling_api import queue_mission
     data=await read_json(request)
-    if not isinstance(data,dict) or set(data)!={'mission','text','name','antenna_map'}:_error('Invalid schedule import request.')
+    if not isinstance(data,dict) or not {'mission','text','name','antenna_map'}<=set(data) or set(data)-{'mission','text','name','antenna_map','metadata'}:_error('Invalid schedule import request.')
     parsed=parse_input(data['text'],data['name'])
     if not isinstance(data['mission'],dict):_error('Configure the mission first.')
     mapping=data['antenna_map']
@@ -91,4 +91,57 @@ async def import_schedule(request:Request):
     try:entry=MissionRequest.model_validate(mission)
     except ValidationError:_error('Set valid mission inputs, tracking window, locations and TLE source before importing.')
     imported={key:data[key] for key in ('text','name','antenna_map')}
-    return await queue_mission(request,entry,imported)
+    # File coordinates belong to this job snapshot, never the shared library.
+    from .scheduling_api import validate_library
+    metadata=data.get('metadata') or {}
+    if not isinstance(metadata,dict):_error('Metadata must be an object.')
+    overrides={}
+    for field,selected in (('ground_station',entry.ground_station),('mission_site',entry.mission_location)):
+        site=metadata.get(field)
+        if not isinstance(site,dict) or site.get('name')!=selected:continue
+        if 'latitude' not in site or 'longitude' not in site:continue
+        value=validate_library('locations',{selected:{**site,'elevation':site.get('elevation',0)}})[selected]
+        if selected in overrides and overrides[selected]!=value:_error('Ground station and mission site share a name but have different coordinates.')
+        overrides[selected]=value
+    return await queue_mission(request,entry,imported,location_overrides=overrides)
+
+
+@router.post('/unpack')
+async def unpack_schedule_bundle(request: Request):
+    """Read our bounded export ZIP in memory; never extract paths onto the server."""
+    import base64
+    import binascii
+    import io
+    import stat
+    import zlib
+    import zipfile
+    from pathlib import PurePosixPath
+    data=await read_json(request,15*1024*1024)
+    if not isinstance(data,dict) or set(data)!={'name','base64'} or not isinstance(data['base64'],str):_error('Choose an exported schedule ZIP.')
+    try:
+        raw=base64.b64decode(data['base64'],validate=True)
+        if len(raw)>10*1024*1024:_error('ZIP exceeds 10 MiB.',413)
+        with zipfile.ZipFile(io.BytesIO(raw)) as bundle:
+            entries=bundle.infolist()
+            if not 1<=len(entries)<=8 or sum(e.file_size for e in entries)>12*1024*1024:_error('ZIP contains too many files or exceeds the expanded size limit.')
+            found={}
+            for entry in entries:
+                path=PurePosixPath(entry.filename)
+                if path.is_absolute() or '..' in path.parts or '\\' in entry.filename or entry.flag_bits&1 or stat.S_ISLNK(entry.external_attr>>16):_error('ZIP contains unsupported paths, links or encrypted files.')
+                if entry.is_dir():continue
+                name=path.name
+                if name.lower() in {'read me.txt','readme.txt','readme.md'}:continue
+                kind='metadata' if name.endswith('.metadata.json') else 'schedule' if path.suffix.lower() in {'.txt','.csv','.json'} else 'tle' if path.suffix.lower() in {'.tle','.3le'} else None
+                if kind is None or kind in found:_error('Choose a ZIP with one schedule, optional matching metadata, and at most one TLE file.')
+                limit={'schedule':1024*1024,'metadata':128*1024,'tle':10*1024*1024}[kind]
+                if entry.file_size>limit:_error('A bundled file exceeds its size limit.',413)
+                text=bundle.read(entry).decode('utf-8-sig')
+                found[kind]={'name':name,'text':text}
+            if 'schedule' not in found:_error('No schedule found in ZIP.')
+            schedule=found['schedule'];parse_input(schedule['text'],schedule['name'][:100])
+            if 'metadata' in found and found['metadata']['name']!=str(PurePosixPath(schedule['name']).with_suffix('.metadata.json')):_error('The ZIP metadata filename must match its schedule filename.')
+            metadata=json.loads(found['metadata']['text']) if 'metadata' in found else None
+            if metadata is not None and not isinstance(metadata,dict):_error('Companion metadata must be a JSON object.')
+            return dict(text=schedule['text'],name=schedule['name'],metadata=metadata,tle=found.get('tle'))
+    except (ValueError,UnicodeError,binascii.Error,zipfile.BadZipFile,RuntimeError,NotImplementedError,zlib.error):
+        _error('Could not read this schedule ZIP. Use an unencrypted MEOSAR export bundle.')

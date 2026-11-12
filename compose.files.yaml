@@ -1,0 +1,32 @@
+# Optional host-visible file library. Combine with base and (if enabled) HTTPS.
+services:
+  web:
+    user: "${MEOSAR_UID:-10001}:${MEOSAR_GID:-10001}"
+    environment:
+      HOME: /tmp
+      XDG_CACHE_HOME: /data/cache
+      MPLCONFIGDIR: /data/cache/matplotlib
+      MEOSAR_EXPORT_DIRECTORY: /exports
+      MEOSAR_TLE_EXPORT_DIRECTORY: /tle-library
+    volumes:
+      - type: bind
+        source: ${MEOSAR_FILES_DIRECTORY:?Set an absolute MEOSAR_FILES_DIRECTORY}/Application Data
+        target: /data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MEOSAR_FILES_DIRECTORY}/Exports
+        target: /exports
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MEOSAR_FILES_DIRECTORY}/TLE Library
+        target: /tle-library
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${MEOSAR_FILES_DIRECTORY}/TLE Imports
+        target: /imports/tles
+        read_only: true
+        bind:
+          create_host_path: false

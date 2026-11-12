@@ -89,7 +89,7 @@ same overlay/env settings on updates avoids accidentally selecting another store
 
 A browser download copies a file onto the client computer. The mounted folder
 is on the SERVER and does not appear automatically on every user's computer.
-The network engineer can provide a restricted SMB/NFS share for Exports and
+A restricted SMB/NFS share can provide direct access to Exports and
 TLE Imports if direct network-folder access is wanted. Do not share Application
 Data or certificate/private-key directories broadly. File sharing permissions
 are separate from the application's shared LAN access.

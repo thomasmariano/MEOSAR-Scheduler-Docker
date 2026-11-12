@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local/test self-signed server certificate; use your engineer's CA-issued cert if available.
+# Local/test self-signed server certificate; use a CA-issued certificate when available.
 set -Eeuo pipefail
 umask 077
 cd "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"

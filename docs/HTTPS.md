@@ -1,6 +1,6 @@
 # HTTPS and certificates
 
-MEOSAR can use the same arrangement as the Network Monitor deployment:
+MEOSAR uses nginx to provide HTTPS for the internal web application:
 
 ```text
 Browser: https://SERVER_NAME:4443
@@ -13,16 +13,14 @@ MEOSAR web:8080 (private Compose network, no published backend port)
 ```
 
 This uses `compose.yaml` plus `compose.https.yaml`. It requires Docker Compose
-2.24.4 or newer. The optional nginx image is `nginx:stable-alpine`; an engineer
-can pin an approved image digest with MEOSAR_NGINX_IMAGE.
+2.24.4 or newer. The optional nginx image is `nginx:stable-alpine`. Pin an approved image digest
+with MEOSAR_NGINX_IMAGE when required.
 
 ## Why 4443 instead of 443?
 
-The coworker's Compose file publishes host ports 80 and 443. Two containers
-cannot bind the same address and port simultaneously. MEOSAR defaults to 4443
-so both applications can coexist. The engineer can choose another available
-port, or route separate DNS names through one shared reverse proxy on 443.
-Do not stop or reconfigure the coworker's app to free its ports.
+Port 4443 allows the application to run alongside services already using ports
+80 or 443. Choose another available host port with MEOSAR_HTTPS_PORT, or route
+a dedicated hostname through an existing HTTPS reverse proxy on 443.
 
 ## Supply a certificate and key
 
@@ -34,7 +32,7 @@ certs/
   server.key   # matching PEM private key
 ```
 
-Use either an engineer-provided internal-CA certificate, or a self-signed server
+Use either an internal-CA certificate, or a self-signed server
 certificate for an explicitly approved deployment/test. An internal CA signs
 certificates that managed computers may already trust. A self-signed server
 certificate needs an approved client trust setup; encryption alone does not
@@ -42,7 +40,7 @@ make an unknown certificate trusted by browsers.
 
 **The certificate must list the actual DNS name/IP users open in its Subject
 Alternative Names.** A localhost test certificate does not identify the Ubuntu
-server. Do not reuse the coworker's private key or copy it out of their repo.
+server. Keep the private key specific to the deployment and restrict access.
 
 Certificate/key files are ignored by Git and excluded from the app image build.
 Mount the certificate directory read-only at runtime. Keep the private key 0600
@@ -58,7 +56,7 @@ On the machine where the certificate will be used, with OpenSSL installed:
 # Local Mac test only:
 bash scripts/create-cert.sh localhost
 
-# On Ubuntu: replace these examples with the engineer-approved name/IP:
+# On Ubuntu: replace these examples with the actual server name/IP:
 bash scripts/create-cert.sh meosar.internal.example 192.168.1.50
 ```
 
@@ -126,7 +124,7 @@ docker compose -f compose.yaml up -d --remove-orphans --wait
 ```
 
 Both modes retain the same data volume. Do not use `down -v` to switch modes.
-Browser trust configuration should follow the engineer's process. Do not treat
+Browser trust configuration should follow the approved certificate trust process. Do not treat
 clicking past a certificate warning as a permanent deployment solution.
 
 To verify a self-signed localhost certificate without disabling verification:
@@ -154,7 +152,7 @@ changed hostname without coordinating DNS/client access.
 
 ## Notes for a shared server reverse proxy
 
-If engineering prefers an existing shared proxy, it can provide the certificate
+An existing shared reverse proxy can provide the certificate
 and routing instead of this bundled nginx service. Keep backend access limited
 to that trusted proxy, forward the original Host including non-default port,
 set X-Forwarded-Proto, and configure trusted forwarded headers appropriately.

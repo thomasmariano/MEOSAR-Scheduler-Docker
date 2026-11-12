@@ -1,4 +1,4 @@
-# Optional nginx TLS termination, matching the coworker's certificate-file model.
+# Optional nginx TLS termination using a mounted certificate and private key.
 # Use with compose.yaml; Docker Compose >= 2.24.4 required for !override.
 services:
   web:

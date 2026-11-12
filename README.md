@@ -1,210 +1,188 @@
 # MEOSAR Scheduler Docker
 
+A self-hosted Docker web application for MEOSAR mission planning, satellite
+visibility analysis, antenna scheduling, and globe simulation. Access a shared
+workspace from a browser, with HTTPS, persistent storage, schedule editing,
+TLE management, and video export.
+
 **Developed and maintained by Thomas Mariano.**
+**Version: 2.0.3**
 
-**Current application version: 2.0.3**
+```text
+Browser (HTTPS :4443)
+          |
+          v
+nginx (certificate + private key)
+          |
+          v
+FastAPI backend :8080 (internal only)
+  | Scheduling, propagation, graphs, FFmpeg encoding
+  v
+Persistent application storage
+```
 
-A self-hosted browser application for MEOSAR mission planning, satellite
-visibility analysis, antenna scheduling, schedule editing, and satellite
-simulation. Users access one shared installation on an internal network instead
-of installing the desktop application on each computer.
-
-This repository is **standalone**: it includes the web interface, calculation
-modules, simulator assets, FFmpeg installation, and Docker configuration. It
-does not require the [separate desktop repository](https://github.com/thomasmariano/MEOSAR-Scheduler)
-to build or run. The desktop and web versions are maintained separately.
+This is a standalone repository. No desktop application, local Python environment,
+or separate FFmpeg installation is required on client computers.
 
 ## Features
 
-- UTC mission event day/time and tracking windows before and after the event.
-- Mutual satellite visibility between a receiving ground station and mission site.
-- Antenna-compatible scheduling, angular separation, and ordered alternate-site preferences.
-- Interactive assignment timeline, coverage-based pass additions, validated edits,
-  saved revisions, coverage graphs, and schedule diagnostics.
-- Saved missions, previous jobs, and a shared launch/landing calendar.
-- Saved satellite, antenna, and location libraries with individual add/edit/delete controls.
-- TLE retrieval from CelesTrak and Space-Track, local file/folder uploads,
-  mounted server-folder imports, automatic epoch selection, and epoch review.
-- Shared announcements and antenna availability updates for future calculations.
-- Browser globe simulation, orbit/ground tracks, monitoring locations, and coverage displays.
-- Video export with camera controls and selectable information panels.
-- Schedule TXT exports, ZIP packages for simulation replay, graph downloads,
-  and an optional host-accessible files library.
-- Light/dark themes and customizable simulator dashboards.
+- **Mission planning** — UTC event day/time and tracking windows before and after an event.
+- **Satellite scheduling** — mutual visibility, antenna band compatibility,
+  angular separation, and ordered alternate-location priorities.
+- **Interactive editing** — assignment timeline, coverage-based pass additions,
+  validated changes, draft history, and saved revisions.
+- **Coverage analysis** — tracking graphs, full-coverage intervals, removed-pass
+  details, missing-TLE information, and epoch review.
+- **Resource libraries** — saved locations, satellites, and antennas with
+  individual add, edit, and delete controls.
+- **TLE management** — CelesTrak, Space-Track, local files/folders, server folders,
+  and automatic epoch selection. Space-Track requires an account.
+- **Saved work** — missions, previous jobs, shared calendar, and announcements.
+- **Antenna availability** — shared down/repair notices for future calculations.
+- **Globe simulator** — satellite positions, orbit/ground tracks, location coverage,
+  monitoring pins, playback, and customizable dashboards.
+- **Video export** — camera controls, selectable information panels, and server encoding.
+- **Downloads** — machine-readable schedules, simulator ZIP packages, graphs, and videos.
+- **Appearance** — light/dark themes and grouped simulator controls.
 
-Whole-library JSON uploads are disabled. Use **Manage libraries** to update
-individual saved entries. TLE imports remain available.
+## Requirements
 
-## Architecture
+- Docker Engine and Docker Compose **2.24.4 or newer**.
+- Linux server with an **amd64 or arm64** processor; the image builds for the host architecture.
+- Git for source-based installation and updates.
+- A certificate matching the hostname/IP used to access the application.
+- Network access to image/package repositories during builds.
+- Access to CelesTrak/Space-Track for online TLE retrieval, or local TLE files.
 
-```text
-Network users: https://SERVER-NAME:4443
-                    |
-                    v
-             nginx HTTPS proxy
-                    |
-                    v
-       Python / FastAPI web application
-       Scheduling, propagation, graph generation
-                    |
-                    v
-      Persistent Docker volume or server folders
-```
+For Ubuntu, follow the [official Docker installation instructions](https://docs.docker.com/engine/install/ubuntu/).
 
-In the supplied HTTPS configuration, **only port 4443 is published**. The app's
-port 8080 stays on the private Compose network. Ports 80 and 443 are not required;
-this setup does not redirect HTTP to HTTPS.
+## Quick start
 
-The server performs scheduling, propagation, graph generation, and FFmpeg video
-encoding. The browser renders the interactive simulator and supplies video
-frames. **Keep the exporting browser tab open until video export finishes.**
-
-The web container does not require PyQt6. The Dockerfile is intended for native
-Linux **amd64 and arm64** builds without changing the source. Deployment on the
-target Ubuntu server still needs to be tested; local Mac testing alone does not
-establish Ubuntu compatibility or operational acceptance of the calculations.
-
-## Intended deployment
-
-- Internal Ubuntu server; the planned target is Ubuntu 22.04.5 LTS.
-- Docker Engine and the Docker Compose plugin **2.24.4 or newer**.
-- HTTPS on **4443**, with a certificate matching the server hostname/IP.
-- Shared access without application logins, by design.
-- Persistent server storage for saved work and imported/downloaded TLEs.
-
-Everyone who can reach the app can modify shared libraries, missions and notices.
-Restrict access to the intended network/users. HTTPS encrypts traffic; it does
-not add accounts or permissions. Your engineer should check Docker-aware firewall
-rules: see [Docker's firewall documentation](https://docs.docker.com/engine/network/packet-filtering-firewalls/).
-
-The server needs outbound access to GitHub and the image/package repositories
-used during builds (Docker registries, Debian package repositories, and PyPI).
-Online TLE retrieval additionally needs access to CelesTrak and Space-Track.
-Local TLE uploads can be used without reaching those TLE providers. A restricted
-or offline build requires a separately prepared image/dependency transfer.
-
-## Fresh installation on Ubuntu
-
-**No Mac runtime data needs to be transferred for this deployment.** The server
-starts with the three bundled default resource libraries. Its TLE library,
-mission/job history, calendar and announcements start empty and can be populated
-on the server. Review `config/locations.json`, `config/satellites.json` and
-`config/antennas.json` before publishing them as defaults in this public repository.
-
-### 1. Check prerequisites and clone
-
-Install Docker Engine and the Compose plugin using the
-[official Ubuntu instructions](https://docs.docker.com/engine/install/ubuntu/).
-The deployment account must be permitted to run Docker.
+### 1. Clone and configure
 
 ```bash
-docker version
-docker compose version
-git --version
-
 git clone https://github.com/thomasmariano/MEOSAR-Scheduler-Docker.git
 cd MEOSAR-Scheduler-Docker
 cp ubuntu.env.example ubuntu.env
 nano ubuntu.env
 ```
 
-In `ubuntu.env`, set the real server bind address. For example:
+Set the server bind address and HTTPS port:
 
 ```dotenv
-# Replace this example with the server's actual LAN IP.
+# Replace the example address with the server's LAN IP.
 MEOSAR_BIND_ADDRESS=192.168.1.50
 MEOSAR_HTTPS=1
 MEOSAR_HTTPS_PORT=4443
 ```
 
-The supplied example uses `0.0.0.0` to listen on all server interfaces; use a
-specific LAN address if required by engineering. `MEOSAR_PORT` applies only to
-HTTP mode and is unused with HTTPS enabled. Keep the env-file settings unquoted
-as shown in `ubuntu.env.example` when using the helper script.
+Use `0.0.0.0` to listen on all interfaces, or a specific server address to limit
+the binding. Keep helper-script env settings unquoted as shown in the template.
+`ubuntu.env` is local configuration and is ignored by Git.
 
-### 2. Supply the server certificate
-
-On Ubuntu, provide these files through your engineer's certificate process:
+### 2. Add the certificate
 
 ```text
-certs/server.crt
-certs/server.key
+MEOSAR-Scheduler-Docker/
+└── certs/
+    ├── server.crt
+    └── server.key
 ```
 
-The certificate must cover the **actual hostname/IP users will open**. The Mac's
-localhost certificate is not suitable for that server address. An internal-CA
-certificate is supported; self-signed certificates require an approved client
-trust setup. Keep the private key restricted and out of GitHub.
+Use a certificate issued by an internal CA, or a self-signed certificate with
+client trust configured. The certificate must include the actual server
+hostname/IP in its Subject Alternative Names. A localhost certificate does not
+identify a remote server. Never commit the private key.
 
-For a self-signed certificate generated on the server, see the exact commands
-and restrictions in [HTTPS setup](docs/HTTPS.md). Do not generate a new certificate
-over an engineer-provided one.
+To generate a self-signed certificate on the server, replace these examples:
 
-### 3. Choose storage before first startup
-
-**Default:** leave `MEOSAR_FILES_DIRECTORY` unset. Docker keeps application data
-in a persistent named volume; browser schedule/graph/video downloads still work.
-
-**Optional accessible folders:** to browse published files directly on the server,
-create the folder layout and set its owner IDs as described in
-[file storage](docs/FILE_STORAGE.md). Then configure `MEOSAR_FILES_DIRECTORY`,
-`MEOSAR_UID`, and `MEOSAR_GID` in `ubuntu.env` **before starting**. The helper
-selects the folder overlay automatically.
-
-```text
-MEOSAR Files/
-  Application Data/     canonical application data; do not edit manually
-  Exports/              readable schedules, graphs and videos
-  TLE Library/          readable copies of TLE sources
-  TLE Imports/          files to import through the browser
+```bash
+bash scripts/create-cert.sh meosar.internal.example 192.168.1.50
 ```
 
-The folder lives on the **server**. Browser downloads save copies to the user's
-computer, normally Downloads. Direct folder access from other computers requires
-a separately configured network share. Do not broadly share Application Data or
-certificate/private-key directories.
+The script refuses to overwrite existing certificate files. It creates a
+certificate valid for 365 days; it does not configure browser trust.
+See [HTTPS setup](docs/HTTPS.md) for certificate installation and renewal.
 
-### 4. Build and start
+### 3. Build and run
 
 ```bash
 bash scripts/server.sh start
 bash scripts/server.sh status
 ```
 
-The first build downloads the base image, Python packages, and FFmpeg. The helper
-waits for container health and records the deployed Git commit. Once healthy, open:
+The helper selects HTTPS, builds the image, starts the containers, and waits
+for health checks. The first build downloads dependencies and FFmpeg.
+
+Open:
 
 ```text
-https://THE-SERVER-NAME-ON-THE-CERTIFICATE:4443
+https://YOUR-SERVER-NAME:4443
 ```
 
-Users need a browser and network access; no local Python or FFmpeg installation
-is required. Use a dedicated hostname at the URL root; hosting under a subpath
-such as `/meosar/` requires additional configuration.
+Use the name/IP covered by the certificate. Deploy at the URL root;
+subpath hosting such as `/meosar/` requires additional configuration.
 
-### 5. Check the installation
+### 4. Configure a mission
 
-From another computer on the intended network:
+- Open **Manage libraries** to review saved locations, satellites, and antennas.
+- Add/edit/delete individual entries as needed. Whole-library JSON uploads are disabled.
+- Open **TLE source & imports → TLE sources & folders** to download or import TLEs.
+- Enter a mission name, UTC event day/time, tracking window, ground station, and mission site.
+- Review satellite and antenna selections, then generate the schedule.
 
-1. Confirm HTTPS works through the approved certificate trust setup.
-2. Review resource libraries and import/download TLEs.
-3. Generate a representative schedule and compare it with the same inputs/TLEs
-   used in local testing.
-4. Edit a pass, save/reopen the mission, and download its schedule package.
-5. Load the simulator and export a short video.
-6. Post a test announcement and verify it appears in another browser.
-7. Check that saved work survives a container restart and test a backup/restore
-   in a separate instance before operational use.
+A fresh installation includes default resource libraries. TLEs, jobs, saved
+missions, calendar entries, and announcements start empty. Existing runtime
+data from another installation is not required.
 
-Full setup and recovery instructions: [Ubuntu deployment guide](docs/UBUNTU_LAN_DEPLOYMENT.md).
+### 5. Review, save, and simulate
 
-## Updating from the Mac through GitHub
+- Select an assignment in the interactive timeline to inspect or edit it.
+- Use **Save schedule** to preserve a named mission snapshot on the server.
+- Use **Export schedule** to download a copy to the current computer.
+- Choose the recommended ZIP package to keep the schedule, metadata, and TLEs together.
+- Open the simulator for playback or upload an existing schedule directly.
+- Keep the browser tab open until a video export finishes; the browser renders
+  frames and the server encodes them with FFmpeg.
 
-On the development computer: make changes, test locally, review the files, then
-commit and push them to this repository. A GitHub push **does not automatically
-update the server**.
+## Ports used
 
-On Ubuntu, after active calculations and video exports finish:
+| Port | Purpose |
+| --- | --- |
+| **4443** | HTTPS dashboard, published on the configured server address |
+| **8080** | FastAPI backend, internal only when HTTPS is enabled |
+
+The supplied HTTPS configuration does not publish ports 80 or 443 and does not
+provide an HTTP redirect. `MEOSAR_PORT` is used only in HTTP mode.
+
+## Storage and downloads
+
+By default, a Docker named volume stores application data at `/data`. Container
+updates preserve saved missions, libraries, schedules, TLEs, notices, and videos.
+Updated bundled defaults do not replace existing server library edits.
+
+For regular server folders, configure `MEOSAR_FILES_DIRECTORY`, `MEOSAR_UID`,
+and `MEOSAR_GID` before first startup. Create the directories and set ownership
+as described in [file storage](docs/FILE_STORAGE.md). The helper automatically
+includes `compose.files.yaml` when this option is configured.
+
+```text
+MEOSAR Files/
+├── Application Data/   # Canonical application data; do not edit manually
+├── Exports/            # Schedules, graphs, videos, saved mission exports
+├── TLE Library/        # Readable copies of TLE sources
+└── TLE Imports/        # Files available for browser import
+```
+
+Browser downloads go to the client computer, normally its Downloads folder.
+The server folder does not automatically appear on other computers; direct
+folder access requires a separate network share. Keep Application Data and
+certificate/private-key directories restricted.
+
+## Updates
+
+Test and push changes to this repository from the development computer. Then,
+on the server, wait for active calculations and video exports to finish:
 
 ```bash
 cd /path/to/MEOSAR-Scheduler-Docker
@@ -212,69 +190,91 @@ git pull --ff-only origin main
 bash scripts/server.sh update
 ```
 
-Replace the path with the actual checkout. The helper requires a clean Git
-checkout, backs up `/data`, rebuilds/restarts the app, and waits for healthy
-containers. Expect brief downtime. Existing server library edits and saved work
-remain in persistent storage; updated bundled defaults do not replace them.
-Use a tested tag/commit when a controlled release is needed. Users should
-hard-refresh their browsers after an update.
+Replace the path with the installation directory. The helper requires a clean
+Git checkout, backs up `/data`, rebuilds/restarts the application, and checks
+container health. Updates involve brief downtime. Users should hard-refresh
+their browsers afterward.
 
-`ubuntu.env`, certificates and runtime data stay on the server and are not
-synchronized through Git. Keep the same Compose project (`meosar-web`), env file
-and storage settings across updates to avoid selecting a different data store.
+GitHub pushes do not automatically deploy. Keep the same Compose project name
+(`meosar-web`), env file, and storage settings across updates. Local env files,
+certificates, and runtime data are not transferred through Git.
 
-## Administration and backups
+## Useful commands
 
 ```bash
+# Container status
 bash scripts/server.sh status
+
+# Recent logs
 bash scripts/server.sh logs
+
+# Back up application data
 bash scripts/server.sh backup
+
+# Build/start the configured installation
+bash scripts/server.sh start
+
+# Back up and deploy updated source
+bash scripts/server.sh update
+
+# Show the deployed commit
 cat .deployment/deployed-commit
 ```
 
-Backups are timestamped under ignored `backups/`. The helper briefly stops the
-writer, archives `/data`, checks the archive listing, and restarts the service
-if it was running. Keep backup copies off the server and test restoration.
+Backups are timestamped under ignored `backups/`. Keep copies off the server
+and test restoration. The `/data` backup includes canonical schedules, libraries,
+TLEs, saved missions, calendar, announcements, and completed videos. Back up
+certificates, the env file, and original TLE-import files separately as needed.
+Browser preferences and notification read status are stored in each browser.
 
-The `/data` backup covers canonical jobs, saved schedules/revisions, libraries,
-TLEs, calendar, announcements and completed videos. Back up the server env file,
-certificates/private key and original TLE-import files separately as appropriate.
-Published Exports/TLE Library files are regenerable copies. Browser preferences
-and notification read status are local to each browser.
+**Do not use `docker compose down -v` for routine maintenance:** it removes
+persistent named volumes. Clearing job history does not delete stored job files;
+plan storage capacity and retention, especially for videos. Rollback and restore
+are manual operations; see the [deployment guide](docs/UBUNTU_LAN_DEPLOYMENT.md).
 
-**Do not use `docker compose down -v` on the live named-volume installation:**
-it removes its persistent data volume. Clearing previous jobs hides them from
-history; it does not reclaim their stored files. Plan disk capacity and retention,
-especially for videos. Code rollback and data restore are deliberate operations;
-the update helper does not perform automatic rollback.
+## Network and validation notes
 
-## Local development
+- Shared internal-network access is used without application logins or roles.
+  Anyone with access can modify shared data; limit network access accordingly.
+- HTTPS provides transport encryption, not application permissions.
+- Check [Docker-aware firewall rules](https://docs.docker.com/engine/network/packet-filtering-firewalls/)
+  when publishing the service.
+- Builds require access to GitHub, Docker registries, Debian repositories, and PyPI.
+- Announcements are in-app notices, not email or desktop push notifications.
+- Validate schedules, simulation, video export, persistence, and backup recovery
+  on the target server before operational use. Local testing does not establish
+  target-server performance or operational acceptance of the calculations.
+- Plan certificate renewal, storage retention, resource limits, and security maintenance.
 
-For a separate local HTTP-only test:
+## Project structure
 
-```bash
-cp .env.example .env
-docker compose up -d --build
+```text
+MEOSAR-Scheduler-Docker/
+├── web/                    # Browser interface and FastAPI routes
+├── core/                   # Scheduling, scoring, visibility, diagnostics
+├── scheduler/              # Calculation workflow
+├── satellites/             # TLE management and source adapters
+├── simulation/             # Orbit engine and shared browser simulator assets
+├── graphs/                 # Coverage and schedule plots
+├── reports/                # Visibility reporting
+├── config/                 # Default resource libraries and configuration helpers
+├── assets/                 # SAR logo and globe texture
+├── deploy/nginx.conf        # HTTPS reverse proxy
+├── certs/                  # Local certificate/key; ignored by Git
+├── scripts/                # Server lifecycle and certificate helpers
+├── docs/                   # Deployment, HTTPS, storage, and repository guides
+├── Dockerfile
+├── compose.yaml
+├── compose.https.yaml
+├── compose.files.yaml
+└── ubuntu.env.example
 ```
-
-Open `http://localhost:8081`. Do not overwrite an existing local `.env`; it may
-already select HTTPS and host-folder storage. The current Mac development stack
-uses `https://localhost:4443`. See [HTTPS setup](docs/HTTPS.md) for local overlays.
-Local test data does not travel to Ubuntu when code is pushed.
-
-## Before wider use
-
-Target-server testing, performance/capacity planning, backup retention, certificate
-renewal, dependency/container security review, and operational validation remain
-part of deployment acceptance. There are no application accounts, permission
-roles, person-level audit trail, email/push announcements, or automatic deployments.
-The app runs as a non-root user with reduced Linux capabilities and bounded jobs;
-those measures are not a substitute for a security review.
 
 ## Documentation
 
-- [Ubuntu deployment and updates](docs/UBUNTU_LAN_DEPLOYMENT.md)
+- [Ubuntu installation, updates, and recovery](docs/UBUNTU_LAN_DEPLOYMENT.md)
 - [HTTPS and certificates](docs/HTTPS.md)
 - [File storage and downloads](docs/FILE_STORAGE.md)
 - [Repository workflow](docs/REPOSITORY_WORKFLOW.md)
 - [Desktop/web feature comparison](docs/WEB_FEATURE_PARITY.md)
+- [Desktop application](https://github.com/thomasmariano/MEOSAR-Scheduler)

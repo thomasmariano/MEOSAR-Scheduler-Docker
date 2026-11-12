@@ -4,7 +4,7 @@ This repository contains the standalone browser app. The desktop app remains in 
 container from source for its own amd64 or arm64 processor. No Mac app bundle,
 ZIP export, Python environment, or client-side installation is needed.
 
-The planned Ubuntu installation is a **fresh installation**. Transfer the source
+A new Ubuntu deployment is a **fresh installation**. Transfer the source
 through GitHub, not the Mac's runtime data. Default location/satellite/antenna
 libraries are bundled; import/download TLEs and create announcements/calendar
 events on Ubuntu. The backup/restore section is for later recovery or an optional
